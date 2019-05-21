@@ -1,0 +1,9 @@
+[package]
+name = "cacache"
+version = "0.1.0"
+authors = ["Kat Marchán <kzm@zkat.tech>"]
+edition = "2018"
+
+[dependencies]
+ssri = "0.2.0"
+hex = "0.3.2"
