@@ -19,3 +19,11 @@ pub fn read_to_string(cache: &Path, sri: &Integrity) -> io::Result<String> {
 pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> io::Result<u64> {
     fs::copy(content_path(&cache, &sri), to)
 }
+
+pub fn has_content(cache: &Path, sri: &Integrity) -> Option<Integrity> {
+    if content_path(&cache, &sri).exists() {
+        Some(sri.clone())
+    } else {
+        None
+    }
+}
