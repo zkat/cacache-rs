@@ -1,7 +1,7 @@
 use std::path::{PathBuf, Path};
 use ssri::Integrity;
 
-const CONTENT_VERSION: &'static str = "2";
+const CONTENT_VERSION: &str = "2";
 
 // Current format of content file path:
 //
