@@ -5,7 +5,7 @@ authors = ["Kat Marchán <kzm@zkat.tech>"]
 edition = "2018"
 
 [dependencies]
-ssri = "0.2.0"
+ssri = "1.1.0"
 hex = "0.3.2"
 atomicwrites = "0.2.2"
 tempfile = "3.0.8"
