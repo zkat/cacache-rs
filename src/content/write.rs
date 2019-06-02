@@ -22,7 +22,6 @@ mod tests {
     fn basic_write() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        println!("dir: {}", dir.to_str().unwrap());
         let sri = write(&dir, b"hello world").unwrap();
         assert_eq!(
             sri.to_string(),
