@@ -87,6 +87,7 @@ dependencies = [
  "digest 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mkdirp 1.0.0 (git+https://github.com/yoshuawuyts/mkdirp)",
  "nix 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.92 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.92 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -194,6 +195,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "libc"
 version = "0.2.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "mkdirp"
+version = "1.0.0"
+source = "git+https://github.com/yoshuawuyts/mkdirp#e66bcf6fa7e1565d8aa51e6c9b06fe4ef0a9cd08"
 
 [[package]]
 name = "nix"
@@ -545,6 +551,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "805026a5d0141ffc30abb3be3173848ad46a1b1664fe632428479619a3644d77"
 "checksum itoa 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "501266b7edd0174f8530248f87f99c88fbe60ca4ef3dd486835b8d8d53136f7f"
 "checksum libc 0.2.55 (registry+https://github.com/rust-lang/crates.io-index)" = "42914d39aad277d9e176efbdad68acb1d5443ab65afe0e0e4f0d49352a950880"
+"checksum mkdirp 1.0.0 (git+https://github.com/yoshuawuyts/mkdirp)" = "<none>"
 "checksum nix 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d37e713a259ff641624b6cb20e3b12b2952313ba36b6823c0f16e6cfd9e5de17"
 "checksum nix 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0d10caafde29a846a82ae0af70414e4643e072993441033b2c93217957e2f867"
 "checksum opaque-debug 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "93f5bb2e8e8dec81642920ccff6b61f1eb94fa3020c5a325c9851ff604152409"
