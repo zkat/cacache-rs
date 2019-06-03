@@ -62,11 +62,6 @@ impl Inserter {
         self
     }
 
-    pub fn integrity(mut self, integrity: Option<Integrity>) -> Self {
-        self.sri = integrity;
-        self
-    }
-
     pub fn chown(mut self, uid: Option<Uid>, gid: Option<Gid>) -> Self {
         self.uid = uid;
         self.gid = gid;
