@@ -17,5 +17,5 @@ serde = "1.0.92"
 serde_derive = "1.0.92"
 nix = "0.14.0"
 mkdirp = { git = "https://github.com/yoshuawuyts/mkdirp" }
-chownr = "1.0.0"
+chownr = "2.0.0"
 failure = "0.1.5"
