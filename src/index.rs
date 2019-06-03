@@ -3,16 +3,18 @@ use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use chownr;
 use digest::Digest;
-use failure::Error;
 use hex;
 use mkdirp;
 use nix::unistd::{Uid, Gid};
 use serde_derive::{Deserialize, Serialize};
-use serde_json::{self, json, Value};
+use serde_json::{json, Value};
 use sha1::Sha1;
 use sha2::Sha256;
 use ssri::Integrity;
+
+use crate::errors::Error;
 
 const INDEX_VERSION: &str = "5";
 
