@@ -19,8 +19,7 @@ const INDEX_VERSION: &str = "5";
 #[derive(PartialEq, Debug)]
 pub struct Entry {
     key: String,
-    // TODO - implement Serialize for Integrity!
-    integrity: String,
+    integrity: Integrity,
     time: u128,
     size: u128,
     metadata: Value,
@@ -109,9 +108,14 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
     Ok(bucket_entries(&bucket)?.into_iter().fold(None, |acc, entry| {
         if entry.key == key {
             if entry.integrity.is_some() {
+                let integrity = entry.integrity.unwrap();
+                let integrity: Integrity = match integrity.parse() {
+                    Ok(sri) => sri,
+                    _ => return acc
+                };
                 Some(Entry {
                     key: entry.key,
-                    integrity: entry.integrity.unwrap(),
+                    integrity,
                     size: entry.size,
                     time: entry.time,
                     metadata: entry.metadata
@@ -233,7 +237,7 @@ mod tests {
             entry,
             Entry {
                 key: String::from("hello"),
-                integrity: sri.to_string(),
+                integrity: sri,
                 time,
                 size: 0,
                 metadata: json!(null)
