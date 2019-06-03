@@ -130,8 +130,18 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
     }))
 }
 
-pub fn delete(_cache: &Path, _key: &str) {
-    unimplemented!();
+pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
+    let inserter = Inserter {
+        cache: cache.to_path_buf(),
+        key: String::from(key),
+        size: None,
+        sri: None,
+        time: None,
+        metadata: None,
+        uid: None,
+        gid: None,
+    };
+    inserter.commit()
 }
 
 pub fn ls(_cache: &Path) {
@@ -240,6 +250,17 @@ mod tests {
     fn find_none() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
+        assert_eq!(find(&dir, "hello").unwrap(), None);
+    }
+
+    #[test]
+    fn delete_basic() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri: Integrity = "sha1-deadbeef".parse().unwrap();
+        let time = 1_234_567;
+        insert(&dir, "hello", sri).time(time).commit().unwrap();
+        delete(&dir, "hello").unwrap();
         assert_eq!(find(&dir, "hello").unwrap(), None);
     }
 }
