@@ -71,7 +71,7 @@ impl Inserter {
     pub fn commit(self) -> Result<(), Error> {
         let bucket = bucket_path(&self.cache, &self.key);
         if let Some(path) = mkdirp::mkdirp(bucket.parent().unwrap())? {
-            chownr::chownr(path.as_path(), self.uid, self.gid)?;
+            chownr::chownr(&path, self.uid, self.gid)?;
         }
         let stringified = serde_json::to_string(&SerializableEntry {
             key: self.key.to_owned(),
@@ -86,7 +86,7 @@ impl Inserter {
             .append(true)
             .open(&bucket)?
             .write_all(&str.into_bytes())?;
-        chownr::chownr(bucket.as_path(), self.uid, self.gid)?;
+        chownr::chownr(&bucket, self.uid, self.gid)?;
         Ok(())
     }
 }
@@ -106,7 +106,7 @@ pub fn insert(cache: &Path, key: &str, sri: Integrity) -> Inserter {
 
 pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
     let bucket = bucket_path(cache, &key);
-    Ok(bucket_entries(bucket.as_path())?.into_iter().fold(None, |acc, entry| {
+    Ok(bucket_entries(&bucket)?.into_iter().fold(None, |acc, entry| {
         if entry.key == key {
             if entry.integrity.is_some() {
                 Some(Entry {
@@ -225,7 +225,7 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
-        let bucket = bucket_path(dir.as_path(), "hello");
+        let bucket = bucket_path(&dir, "hello");
         mkdirp::mkdirp(bucket.parent().unwrap()).unwrap();
         fs::write(bucket, MOCK_ENTRY).unwrap();
         let entry = find(&dir, "hello").unwrap().unwrap();
