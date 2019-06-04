@@ -109,8 +109,7 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
     let bucket = bucket_path(cache, &key);
     Ok(bucket_entries(&bucket)?.into_iter().fold(None, |acc, entry| {
         if entry.key == key {
-            if entry.integrity.is_some() {
-                let integrity = entry.integrity.unwrap();
+            if let Some(integrity) = entry.integrity {
                 let integrity: Integrity = match integrity.parse() {
                     Ok(sri) => sri,
                     _ => return acc
