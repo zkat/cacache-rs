@@ -69,14 +69,14 @@ impl Inserter {
         self
     }
 
-    pub fn commit(self) -> Result<(), Error> {
+    pub fn commit(self) -> Result<Integrity, Error> {
         let bucket = bucket_path(&self.cache, &self.key);
         if let Some(path) = mkdirp::mkdirp(bucket.parent().unwrap())? {
             chownr::chownr(&path, self.uid, self.gid)?;
         }
         let stringified = serde_json::to_string(&SerializableEntry {
             key: self.key.to_owned(),
-            integrity: self.sri.map(|x| x.to_string()),
+            integrity: self.sri.clone().map(|x| x.to_string()),
             time: self.time.unwrap_or_else(now),
             size: self.size.unwrap_or(0),
             metadata: self.metadata.unwrap_or_else(|| json!(null)),
@@ -88,7 +88,7 @@ impl Inserter {
             .open(&bucket)?
             .write_all(&str.into_bytes())?;
         chownr::chownr(&bucket, self.uid, self.gid)?;
-        Ok(())
+        Ok(self.sri.unwrap_or_else(|| "sha1-deadbeef".parse::<Integrity>().unwrap()))
     }
 }
 
@@ -142,7 +142,8 @@ pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
         uid: None,
         gid: None,
     };
-    inserter.commit()
+    inserter.commit()?;
+    Ok(())
 }
 
 pub fn ls(_cache: &Path) {
