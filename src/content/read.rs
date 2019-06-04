@@ -1,23 +1,30 @@
-use crate::content::path;
-use ssri::Integrity;
+use std::fs;
 use std::path::Path;
-use std::fs::{self, File};
-use std::io;
 
-pub fn open(cache: &Path, sri: &Integrity) -> io::Result<File> {
-    File::open(path::content_path(&cache, &sri))
+use ssri::Integrity;
+
+use crate::content::path;
+use crate::errors::Error;
+
+pub fn read(cache: &Path, sri: &Integrity) -> Result<Vec<u8>, Error> {
+    let cpath = path::content_path(&cache, &sri);
+    let ret = fs::read(&cpath)?;
+    if sri.clone().check(&ret).is_some() {
+        Ok(ret)
+    } else {
+        Err(Error::IntegrityError)
+    }
 }
 
-pub fn read(cache: &Path, sri: &Integrity) -> io::Result<Vec<u8>> {
-    fs::read(path::content_path(&cache, &sri))
-}
-
-pub fn read_to_string(cache: &Path, sri: &Integrity) -> io::Result<String> {
-    fs::read_to_string(path::content_path(&cache, &sri))
-}
-
-pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> io::Result<u64> {
-    fs::copy(path::content_path(&cache, &sri), to)
+pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64, Error> {
+    let cpath = path::content_path(&cache, &sri);
+    let ret = fs::copy(&cpath, to)?;
+    let data = fs::read(cpath)?;
+    if sri.clone().check(data).is_some() {
+        Ok(ret)
+    } else {
+        Err(Error::IntegrityError)
+    }
 }
 
 pub fn has_content(cache: &Path, sri: &Integrity) -> Option<Integrity> {

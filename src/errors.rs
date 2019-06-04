@@ -6,6 +6,10 @@ use serde_json;
 
 #[derive(Fail, Debug)]
 pub enum Error {
+    #[fail(display = "not found")]
+    NotFound,
+    #[fail(display = "integrity check failed")]
+    IntegrityError,
     #[fail(display = "{}", _0)]
     Io(#[fail(cause)] io::Error),
     #[fail(display = "{}", _0)]
