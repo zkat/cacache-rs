@@ -20,11 +20,11 @@ const INDEX_VERSION: &str = "5";
 
 #[derive(PartialEq, Debug)]
 pub struct Entry {
-    key: String,
-    integrity: Integrity,
-    time: u128,
-    size: u128,
-    metadata: Value,
+    pub key: String,
+    pub integrity: Integrity,
+    pub time: u128,
+    pub size: u128,
+    pub metadata: Value,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
