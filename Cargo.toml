@@ -19,3 +19,5 @@ nix = "0.14.0"
 mkdirp = { git = "https://github.com/yoshuawuyts/mkdirp" }
 chownr = "2.0.0"
 failure = "0.1.5"
+walkdir = "2.2.7"
+either = "1.5.2"

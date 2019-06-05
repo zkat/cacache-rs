@@ -1,3 +1,4 @@
+use std::collections::hash_map::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
@@ -5,6 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use chownr;
 use digest::Digest;
+use either::{Left, Right};
 use hex;
 use mkdirp;
 use serde_derive::{Deserialize, Serialize};
@@ -12,6 +14,7 @@ use serde_json::{json, Value};
 use sha1::Sha1;
 use sha2::Sha256;
 use ssri::Integrity;
+use walkdir::WalkDir;
 
 use crate::put::Writer;
 use crate::errors::Error;
@@ -99,10 +102,42 @@ pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
     Ok(())
 }
 
-// TODO
-// pub fn ls(_cache: &Path) {
-//     unimplemented!();
-// }
+pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Entry, Error>> {
+    let mut path = PathBuf::new();
+    path.push(cache);
+    path.push(format!("index-v{}", INDEX_VERSION));
+    WalkDir::new(path).into_iter().map(|bucket| {
+        let bucket = bucket?;
+        if bucket.file_type().is_dir() {
+            return Ok(core::iter::empty().collect::<Vec<Entry>>())
+        }
+        let entries = bucket_entries(bucket.path())?;
+        let mut dedupe: HashMap<String, SerializableEntry> = HashMap::new();
+        for entry in entries {
+            dedupe.insert(entry.key.clone(), entry);
+        }
+        let iter = dedupe
+            .into_iter()
+            .filter(|se| se.1.integrity.is_some())
+            .map(|se| {
+                let se = se.1;
+                Entry {
+                    key: se.key,
+                    integrity: se.integrity.unwrap().parse().unwrap(),
+                    time: se.time,
+                    size: se.size,
+                    metadata: se.metadata,
+                }
+            });
+        Ok(iter.collect::<Vec<Entry>>())
+    })
+    .flat_map(|res| {
+        match res {
+            Ok(it) => Left(it.into_iter().map(Ok)),
+            Err(err) => Right(std::iter::once(Err(err)))
+        }
+    })
+}
 
 fn bucket_path(cache: &Path, key: &str) -> PathBuf {
     let hashed = hash_key(&key);
@@ -224,5 +259,28 @@ mod tests {
         insert(writer).unwrap();
         delete(&dir, "hello").unwrap();
         assert_eq!(find(&dir, "hello").unwrap(), None);
+    }
+
+    #[test]
+    fn ls_basic() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri: Integrity = "sha1-deadbeef".parse().unwrap();
+        let time = 1_234_567;
+        let writer = Writer::new(&dir, "hello")
+            .integrity(sri.clone())
+            .time(time);
+        insert(writer).unwrap();
+        let writer = Writer::new(&dir, "world")
+            .integrity(sri.clone())
+            .time(time);
+        insert(writer).unwrap();
+
+        let mut entries = ls(&dir)
+            .map(|x| Ok(x?.key))
+            .collect::<Result<Vec<_>, Error>>()
+            .unwrap();
+        entries.sort();
+        assert_eq!(entries, vec![String::from("hello"), String::from("world")])
     }
 }
