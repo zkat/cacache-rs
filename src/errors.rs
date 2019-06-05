@@ -11,6 +11,8 @@ pub enum Error {
     NotFound,
     #[fail(display = "integrity check failed")]
     IntegrityError,
+    #[fail(display = "size check failed")]
+    SizeError,
     #[fail(display = "{}", _0)]
     Io(#[fail(cause)] io::Error),
     #[fail(display = "{}", _0)]
