@@ -9,7 +9,7 @@ use crate::content::write;
 use crate::index;
 use crate::errors::Error;
 
-pub fn data(cache: &Path, key: String, data: Vec<u8>) -> Result<Integrity, Error> {
+pub fn data(cache: &Path, key: &str, data: Vec<u8>) -> Result<Integrity, Error> {
     let sri = write::write(&cache, &data)?;
     Writer::new(cache, &key).integrity(sri).commit(data)
 }
