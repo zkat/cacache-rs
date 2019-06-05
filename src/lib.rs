@@ -3,11 +3,12 @@
 //! give you corrupted data, even if cache files get corrupted or manipulated.
 
 mod content;
+mod errors;
+mod index;
+
 pub mod get;
 pub mod put;
 pub mod rm;
-mod index;
-mod errors;
 
 pub use errors::Error;
 pub use index::Entry;
