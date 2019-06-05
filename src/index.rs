@@ -7,13 +7,13 @@ use chownr;
 use digest::Digest;
 use hex;
 use mkdirp;
-use nix::unistd::{Uid, Gid};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha1::Sha1;
 use sha2::Sha256;
 use ssri::Integrity;
 
+use crate::put::Writer;
 use crate::errors::Error;
 
 const INDEX_VERSION: &str = "5";
@@ -23,7 +23,7 @@ pub struct Entry {
     pub key: String,
     pub integrity: Integrity,
     pub time: u128,
-    pub size: u128,
+    pub size: usize,
     pub metadata: Value,
 }
 
@@ -32,77 +32,30 @@ struct SerializableEntry {
     key: String,
     integrity: Option<String>,
     time: u128,
-    size: u128,
+    size: usize,
     metadata: Value,
 }
 
-pub struct Inserter {
-    cache: PathBuf,
-    key: String,
-    sri: Option<Integrity>,
-    size: Option<u128>,
-    time: Option<u128>,
-    metadata: Option<Value>,
-    uid: Option<Uid>,
-    gid: Option<Gid>,
-}
-
-impl Inserter {
-    pub fn size(mut self, size: u128) -> Self {
-        self.size = Some(size);
-        self
+pub fn insert(inserter: Writer) -> Result<Integrity, Error> {
+    let bucket = bucket_path(&inserter.cache, &inserter.key);
+    if let Some(path) = mkdirp::mkdirp(bucket.parent().unwrap())? {
+        chownr::chownr(&path, inserter.uid, inserter.gid)?;
     }
-
-    pub fn metadata(mut self, metadata: Value) -> Self {
-        self.metadata = Some(metadata);
-        self
-    }
-
-    pub fn time(mut self, time: u128) -> Self {
-        self.time = Some(time);
-        self
-    }
-
-    pub fn chown(mut self, uid: Option<Uid>, gid: Option<Gid>) -> Self {
-        self.uid = uid;
-        self.gid = gid;
-        self
-    }
-
-    pub fn commit(self) -> Result<Integrity, Error> {
-        let bucket = bucket_path(&self.cache, &self.key);
-        if let Some(path) = mkdirp::mkdirp(bucket.parent().unwrap())? {
-            chownr::chownr(&path, self.uid, self.gid)?;
-        }
-        let stringified = serde_json::to_string(&SerializableEntry {
-            key: self.key.to_owned(),
-            integrity: self.sri.clone().map(|x| x.to_string()),
-            time: self.time.unwrap_or_else(now),
-            size: self.size.unwrap_or(0),
-            metadata: self.metadata.unwrap_or_else(|| json!(null)),
-        })?;
-        let str = format!("\n{}\t{}", hash_entry(&stringified), stringified);
-        OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&bucket)?
-            .write_all(&str.into_bytes())?;
-        chownr::chownr(&bucket, self.uid, self.gid)?;
-        Ok(self.sri.unwrap_or_else(|| "sha1-deadbeef".parse::<Integrity>().unwrap()))
-    }
-}
-
-pub fn insert(cache: &Path, key: &str, sri: Integrity) -> Inserter {
-    Inserter {
-        cache: cache.to_path_buf(),
-        key: String::from(key),
-        size: None,
-        sri: Some(sri),
-        time: None,
-        metadata: None,
-        uid: None,
-        gid: None,
-    }
+    let stringified = serde_json::to_string(&SerializableEntry {
+        key: inserter.key.to_owned(),
+        integrity: inserter.sri.clone().map(|x| x.to_string()),
+        time: inserter.time.unwrap_or_else(now),
+        size: inserter.size.unwrap_or(0),
+        metadata: inserter.metadata.unwrap_or_else(|| json!(null)),
+    })?;
+    let str = format!("\n{}\t{}", hash_entry(&stringified), stringified);
+    OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&bucket)?
+        .write_all(&str.into_bytes())?;
+    chownr::chownr(&bucket, inserter.uid, inserter.gid)?;
+    Ok(inserter.sri.unwrap_or_else(|| "sha1-deadbeef".parse::<Integrity>().unwrap()))
 }
 
 pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
@@ -131,7 +84,7 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
 }
 
 pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
-    let inserter = Inserter {
+    let inserter = Writer {
         cache: cache.to_path_buf(),
         key: String::from(key),
         size: None,
@@ -141,7 +94,7 @@ pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
         uid: None,
         gid: None,
     };
-    inserter.commit()?;
+    insert(inserter)?;
     Ok(())
 }
 
@@ -220,7 +173,10 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
-        insert(&dir, "hello", sri).time(time).commit().unwrap();
+        let writer = Writer::new(&dir, "hello")
+            .integrity(sri)
+            .time(time);
+        insert(writer).unwrap();
         let entry = std::fs::read_to_string(bucket_path(&dir, "hello")).unwrap();
         assert_eq!(entry, MOCK_ENTRY);
     }
@@ -260,7 +216,10 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
-        insert(&dir, "hello", sri).time(time).commit().unwrap();
+        let writer = Writer::new(&dir, "hello")
+            .integrity(sri)
+            .time(time);
+        insert(writer).unwrap();
         delete(&dir, "hello").unwrap();
         assert_eq!(find(&dir, "hello").unwrap(), None);
     }
