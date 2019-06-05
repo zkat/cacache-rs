@@ -1,11 +1,14 @@
-use atomicwrites::{AtomicFile, AllowOverwrite};
-use crate::content::path;
-use ssri::{Algorithm, Integrity};
 use std::fs::DirBuilder;
-use std::io::{self, prelude::*};
+use std::io::prelude::*;
 use std::path::Path;
 
-pub fn write(cache: &Path, data: &[u8]) -> io::Result<Integrity> {
+use atomicwrites::{AtomicFile, AllowOverwrite};
+use ssri::{Algorithm, Integrity};
+
+use crate::content::path;
+use crate::errors::Error;
+
+pub fn write(cache: &Path, data: &[u8]) -> Result<Integrity, Error> {
     let sri = Integrity::from(&data, Algorithm::Sha256);
     let cpath = path::content_path(&cache, &sri);
     DirBuilder::new().recursive(true).create(cpath.parent().unwrap())?;
