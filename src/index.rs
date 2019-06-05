@@ -98,9 +98,10 @@ pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn ls(_cache: &Path) {
-    unimplemented!();
-}
+// TODO
+// pub fn ls(_cache: &Path) {
+//     unimplemented!();
+// }
 
 fn bucket_path(cache: &Path, key: &str) -> PathBuf {
     let hashed = hash_key(&key);
