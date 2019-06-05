@@ -5,6 +5,7 @@ use chownr;
 use failure::Fail;
 use serde_json;
 
+/// Error type returned by all API calls.
 #[derive(Fail, Debug)]
 pub enum Error {
     #[fail(display = "not found")]

@@ -1,3 +1,4 @@
+//! Functions for writing to cache.
 use std::path::{Path, PathBuf};
 
 use nix::unistd::{Uid, Gid};

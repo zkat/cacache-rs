@@ -1,3 +1,4 @@
+//! Functions for removing things from the cache.
 use std::fs;
 use std::path::Path;
 

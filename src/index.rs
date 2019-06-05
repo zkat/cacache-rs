@@ -18,6 +18,7 @@ use crate::errors::Error;
 
 const INDEX_VERSION: &str = "5";
 
+/// Represents a cache index entry, which points to content.
 #[derive(PartialEq, Debug)]
 pub struct Entry {
     pub key: String,

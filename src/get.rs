@@ -1,3 +1,4 @@
+//! Functions for reading from cache.
 use std::path::Path;
 
 use ssri::Integrity;
