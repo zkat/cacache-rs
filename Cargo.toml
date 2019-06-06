@@ -3,6 +3,10 @@ name = "cacache"
 version = "0.1.0"
 authors = ["Kat Marchán <kzm@zkat.tech>"]
 edition = "2018"
+description = "Content-addressable, key-value, high-performance, on-disk cache."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/zkat/cacache-rs"
+homepage = "https://github.com/zkat/cacache-rs"
 
 [dependencies]
 ssri = "1.2.0"
