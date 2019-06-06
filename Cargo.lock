@@ -2,10 +2,10 @@
 # It is not intended for manual editing.
 [[package]]
 name = "atomicwrites"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "nix 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nix 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -82,7 +82,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "cacache"
 version = "0.1.0"
 dependencies = [
- "atomicwrites 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "atomicwrites 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "chownr 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "digest 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "either 1.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -197,18 +197,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "mkdirp"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "nix"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "cc 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
- "cfg-if 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.55 (registry+https://github.com/rust-lang/crates.io-index)",
- "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "nix"
@@ -547,7 +535,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
-"checksum atomicwrites 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a3420b33cdefd3feb223dddc23739fc05cc034eb0f2be792c763e3d89e1eb6e3"
+"checksum atomicwrites 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "c4e1aa99513c90202b4b04cfbe3c9d51dd914f2e26215a4caa76574b00bb6393"
 "checksum autocfg 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "0e49efa51329a5fd37e7c79db4621af617cd4e3e5bc224939808d076077077bf"
 "checksum backtrace 0.3.26 (registry+https://github.com/rust-lang/crates.io-index)" = "1a13fc43f04daf08ab4f71e3d27e1fc27fc437d3e95ac0063a796d92fb40f39b"
 "checksum backtrace-sys 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)" = "797c830ac25ccc92a7f8a7b9862bde440715531514594a6154e3d4a54dd769b6"
@@ -572,7 +560,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum itoa 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "501266b7edd0174f8530248f87f99c88fbe60ca4ef3dd486835b8d8d53136f7f"
 "checksum libc 0.2.55 (registry+https://github.com/rust-lang/crates.io-index)" = "42914d39aad277d9e176efbdad68acb1d5443ab65afe0e0e4f0d49352a950880"
 "checksum mkdirp 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "864e1de64c29b386d2dc7822aea156a7e4d45d4393ac748878dc21c9c41037f0"
-"checksum nix 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d37e713a259ff641624b6cb20e3b12b2952313ba36b6823c0f16e6cfd9e5de17"
 "checksum nix 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0d10caafde29a846a82ae0af70414e4643e072993441033b2c93217957e2f867"
 "checksum opaque-debug 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "93f5bb2e8e8dec81642920ccff6b61f1eb94fa3020c5a325c9851ff604152409"
 "checksum proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)" = "cf3d2011ab5c909338f7887f4fc896d35932e29146c12c8d01da6b22a80ba759"
