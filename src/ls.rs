@@ -3,6 +3,6 @@ use std::path::Path;
 
 use crate::index;
 
-pub fn all(cache: &Path) -> impl Iterator {
-    index::ls(cache)
+pub fn all<P: AsRef<Path>>(cache: P) -> impl Iterator {
+    index::ls(cache.as_ref())
 }

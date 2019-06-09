@@ -9,9 +9,9 @@ use crate::content::write;
 use crate::index;
 use crate::errors::Error;
 
-pub fn data(cache: &Path, key: &str, data: Vec<u8>) -> Result<Integrity, Error> {
-    let sri = write::write(&cache, &data)?;
-    Writer::new(cache, &key).integrity(sri).commit(data)
+pub fn data<P: AsRef<Path>, D: AsRef<[u8]>, K: AsRef<str>>(cache: P, key: K, data: D) -> Result<Integrity, Error> {
+    let sri = write::write(cache.as_ref(), data.as_ref())?;
+    Writer::new(cache.as_ref(), key.as_ref()).integrity(sri).commit(data)
 }
 
 pub struct Writer {
@@ -26,10 +26,10 @@ pub struct Writer {
 }
 
 impl Writer {
-    pub fn new(cache: &Path, key: &str) -> Writer {
+    pub fn new<P: AsRef<Path>, K: AsRef<str>>(cache: P, key: K) -> Writer {
         Writer {
-            cache: cache.to_path_buf(),
-            key: String::from(key),
+            cache: cache.as_ref().to_path_buf(),
+            key: String::from(key.as_ref()),
             sri: None,
             size: None,
             time: None,
@@ -65,18 +65,18 @@ impl Writer {
         self
     }
 
-    pub fn commit(self, data: Vec<u8>) -> Result<Integrity, Error> {
+    pub fn commit<D: AsRef<[u8]>>(self, data: D) -> Result<Integrity, Error> {
         if let Some(sri) = &self.sri {
             if sri.clone().check(&data).is_none() {
                 return Err(Error::IntegrityError);
             }
         }
         if let Some(size) = self.size {
-            if size != data.len() {
+            if size != data.as_ref().len() {
                 return Err(Error::SizeError);
             }
         }
-        let sri = write::write(&self.cache, &data)?;
+        let sri = write::write(&self.cache, data.as_ref())?;
         index::insert(self)?;
         Ok(sri)
     }
