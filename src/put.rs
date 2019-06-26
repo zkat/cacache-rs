@@ -67,7 +67,7 @@ impl Writer {
 
     pub fn commit<D: AsRef<[u8]>>(self, data: D) -> Result<Integrity, Error> {
         if let Some(sri) = &self.sri {
-            if sri.clone().check(&data).is_none() {
+            if sri.check(&data).is_none() {
                 return Err(Error::IntegrityError);
             }
         }

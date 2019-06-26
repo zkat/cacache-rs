@@ -3,13 +3,13 @@ use std::io::prelude::*;
 use std::path::Path;
 
 use atomicwrites::{AtomicFile, AllowOverwrite};
-use ssri::{Algorithm, Integrity};
+use ssri::Integrity;
 
 use crate::content::path;
 use crate::errors::Error;
 
 pub fn write(cache: &Path, data: &[u8]) -> Result<Integrity, Error> {
-    let sri = Integrity::from(&data, Algorithm::Sha256);
+    let sri = Integrity::from(&data);
     let cpath = path::content_path(&cache, &sri);
     DirBuilder::new().recursive(true).create(cpath.parent().unwrap())?;
     let file = AtomicFile::new(&cpath, AllowOverwrite);
@@ -28,7 +28,7 @@ mod tests {
         let sri = write(&dir, b"hello world").unwrap();
         assert_eq!(
             sri.to_string(),
-            Integrity::from(b"hello world", Algorithm::Sha256).to_string()
+            Integrity::from(b"hello world").to_string()
         );
         assert_eq!(
             std::fs::read(path::content_path(&dir, &sri)).unwrap(),

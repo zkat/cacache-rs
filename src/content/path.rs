@@ -23,12 +23,12 @@ pub fn content_path(cache: &Path, sri: &Integrity) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::content_path;
-    use ssri::{Integrity, Algorithm};
+    use ssri::Integrity;
     use std::path::Path;
 
     #[test]
     fn basic_test() {
-        let sri = Integrity::from(b"hello world", Algorithm::Sha256);
+        let sri = Integrity::from(b"hello world");
         let cpath = content_path(Path::new("~/.my-cache"), &sri);
         assert_eq!(
             cpath.to_str().unwrap(),
