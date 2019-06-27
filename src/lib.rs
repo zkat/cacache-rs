@@ -7,9 +7,9 @@ mod errors;
 mod index;
 
 pub mod get;
+pub mod ls;
 pub mod put;
 pub mod rm;
-pub mod ls;
 
 pub use errors::Error;
 pub use index::Entry;

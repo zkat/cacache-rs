@@ -92,7 +92,10 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
 }
 
 pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
-    insert(cache, key, PutOpts {
+    insert(
+        cache,
+        key,
+        PutOpts {
             algorithm: None,
             size: None,
             sri: None,
@@ -100,7 +103,7 @@ pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
             metadata: None,
             uid: None,
             gid: None,
-        }
+        },
     )?;
     Ok(())
 }

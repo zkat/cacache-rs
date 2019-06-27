@@ -1,5 +1,5 @@
-use std::path::{PathBuf, Path};
 use ssri::Integrity;
+use std::path::{Path, PathBuf};
 
 const CONTENT_VERSION: &str = "2";
 
