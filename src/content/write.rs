@@ -32,6 +32,7 @@ impl Writer {
         let cpath = path::content_path(&self.cache, &sri);
         DirBuilder::new()
             .recursive(true)
+            // Safe unwrap. cpath always has multiple segments
             .create(cpath.parent().unwrap())?;
         self.tmpfile.persist(cpath)?;
         Ok(sri)
