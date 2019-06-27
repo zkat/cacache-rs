@@ -1,9 +1,9 @@
 use std::io;
 
-use atomicwrites;
 use chownr;
 use failure::Fail;
 use serde_json;
+use tempfile;
 use walkdir;
 
 /// Error type returned by all API calls.
@@ -22,7 +22,7 @@ pub enum Error {
     #[fail(display = "{}", _0)]
     SerdeJson(#[fail(cause)] serde_json::error::Error),
     #[fail(display = "{}", _0)]
-    AtomicWrite(#[fail(cause)] atomicwrites::Error<io::Error>),
+    PersistError(#[fail(cause)] tempfile::PersistError),
     #[fail(display = "{}", _0)]
     WalkDir(#[fail(cause)] walkdir::Error),
 }
@@ -45,9 +45,9 @@ impl From<serde_json::error::Error> for Error {
     }
 }
 
-impl From<atomicwrites::Error<io::Error>> for Error {
-    fn from(error: atomicwrites::Error<io::Error>) -> Self {
-        Error::AtomicWrite(error)
+impl From<tempfile::PersistError> for Error {
+    fn from(error: tempfile::PersistError) -> Self {
+        Error::PersistError(error)
     }
 }
 

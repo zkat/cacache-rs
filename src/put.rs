@@ -1,22 +1,31 @@
 //! Functions for writing to cache.
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-use nix::unistd::{Uid, Gid};
+use nix::unistd::{Gid, Uid};
 use serde_json::Value;
-use ssri::Integrity;
+use ssri::{Algorithm, Integrity};
 
 use crate::content::write;
-use crate::index;
 use crate::errors::Error;
+use crate::index;
 
-pub fn data<P: AsRef<Path>, D: AsRef<[u8]>, K: AsRef<str>>(cache: P, key: K, data: D) -> Result<Integrity, Error> {
-    let sri = write::write(cache.as_ref(), data.as_ref())?;
-    Writer::new(cache.as_ref(), key.as_ref()).integrity(sri).commit(data)
+pub fn data<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity, Error>
+where
+    P: AsRef<Path>,
+    D: AsRef<[u8]>,
+    K: AsRef<str>,
+{
+    let mut writer = PutOpts::new()
+        .algorithm(Algorithm::Sha256)
+        .open(cache.as_ref(), key.as_ref())?;
+    writer.write_all(data.as_ref())?;
+    writer.commit()
 }
 
-pub struct Writer {
-    pub cache: PathBuf,
-    pub key: String,
+#[derive(Default)]
+pub struct PutOpts {
+    pub algorithm: Option<Algorithm>,
     pub sri: Option<Integrity>,
     pub size: Option<usize>,
     pub time: Option<u128>,
@@ -25,18 +34,31 @@ pub struct Writer {
     pub gid: Option<Gid>,
 }
 
-impl Writer {
-    pub fn new<P: AsRef<Path>, K: AsRef<str>>(cache: P, key: K) -> Writer {
-        Writer {
+impl PutOpts {
+    pub fn new() -> PutOpts {
+        Default::default()
+    }
+
+    pub fn open<P, K>(self, cache: P, key: K) -> Result<Put, Error>
+    where
+        P: AsRef<Path>,
+        K: AsRef<str>,
+    {
+        Ok(Put {
             cache: cache.as_ref().to_path_buf(),
             key: String::from(key.as_ref()),
-            sri: None,
-            size: None,
-            time: None,
-            metadata: None,
-            uid: None,
-            gid: None
-        }
+            written: 0,
+            writer: write::Writer::new(
+                cache.as_ref(),
+                self.algorithm.as_ref().unwrap_or(&Algorithm::Sha256).clone()
+            )?,
+            opts: self,
+        })
+    }
+
+    pub fn algorithm(mut self, algo: Algorithm) -> Self {
+        self.algorithm = Some(algo);
+        self
     }
 
     pub fn size(mut self, size: usize) -> Self {
@@ -64,20 +86,46 @@ impl Writer {
         self.gid = gid;
         self
     }
+}
 
-    pub fn commit<D: AsRef<[u8]>>(self, data: D) -> Result<Integrity, Error> {
-        if let Some(sri) = &self.sri {
-            if sri.check(&data).is_none() {
+pub struct Put {
+    pub cache: PathBuf,
+    pub key: String,
+    pub written: usize,
+    pub(crate) writer: write::Writer,
+    pub opts: PutOpts,
+}
+
+impl Write for Put {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.writer.write(buf)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.writer.flush()
+    }
+}
+
+impl Put {
+    pub fn commit(self) -> Result<Integrity, Error> {
+        let writer_sri = self.writer.close()?;
+        if let Some(sri) = &self.opts.sri {
+            // TODO - ssri should have a .matches method
+            let algo = sri.pick_algorithm();
+            let matched = sri
+                .hashes
+                .iter()
+                .take_while(|h| h.algorithm == algo)
+                .find(|&h| *h == writer_sri.hashes[0]);
+            if matched.is_none() {
                 return Err(Error::IntegrityError);
             }
         }
-        if let Some(size) = self.size {
-            if size != data.as_ref().len() {
+        if let Some(size) = self.opts.size {
+            if size != self.written {
                 return Err(Error::SizeError);
             }
         }
-        let sri = write::write(&self.cache, data.as_ref())?;
-        index::insert(self)?;
-        Ok(sri)
+        index::insert(&self.cache, &self.key, self.opts)?;
+        Ok(writer_sri)
     }
 }
