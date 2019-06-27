@@ -28,7 +28,7 @@ pub fn copy<P: AsRef<Path>, K: AsRef<str>>(cache: P, key: K, to: P) -> Result<u6
 }
 
 pub fn copy_hash<P: AsRef<Path>>(cache: P, sri: &Integrity, to: P) -> Result<u64, Error> {
-    Ok(read::copy(cache.as_ref(), sri, to.as_ref())?)
+    read::copy(cache.as_ref(), sri, to.as_ref())
 }
 
 pub fn info<P: AsRef<Path>, K: AsRef<str>>(cache: P, key: K) -> Result<Option<Entry>, Error> {
