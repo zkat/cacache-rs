@@ -38,7 +38,7 @@ where
 
 pub fn open_hash<P>(cache: P, sri: Integrity) -> Result<Get, Error>
 where
-    P: AsRef<Path>
+    P: AsRef<Path>,
 {
     Ok(Get {
         reader: read::open(cache.as_ref(), sri)?,
@@ -59,7 +59,7 @@ where
 
 pub fn read_hash<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>, Error>
 where
-    P: AsRef<Path>
+    P: AsRef<Path>,
 {
     Ok(read::read(cache.as_ref(), sri)?)
 }
