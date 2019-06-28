@@ -9,7 +9,7 @@ repository = "https://github.com/zkat/cacache-rs"
 homepage = "https://github.com/zkat/cacache-rs"
 
 [dependencies]
-ssri = "2.0.0"
+ssri = "3.0.0"
 hex = "0.3.2"
 tempfile = "3.0.8"
 sha-1 = "0.8.1"
