@@ -25,7 +25,7 @@ impl Reader {
     }
 }
 
-pub fn open<'a>(cache: &Path, sri: Integrity) -> Result<Reader, Error> {
+pub fn open(cache: &Path, sri: Integrity) -> Result<Reader, Error> {
     Ok(Reader {
         fd: File::open(cache)?,
         checker: IntegrityChecker::new(sri),

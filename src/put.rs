@@ -50,10 +50,9 @@ impl PutOpts {
             written: 0,
             writer: write::Writer::new(
                 cache.as_ref(),
-                self.algorithm
+                *self.algorithm
                     .as_ref()
-                    .unwrap_or(&Algorithm::Sha256)
-                    .clone(),
+                    .unwrap_or(&Algorithm::Sha256),
             )?,
             opts: self,
         })
