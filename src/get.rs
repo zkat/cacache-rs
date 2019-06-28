@@ -45,7 +45,11 @@ where
     })
 }
 
-pub fn read<P: AsRef<Path>, K: AsRef<str>>(cache: P, key: K) -> Result<Vec<u8>, Error> {
+pub fn read<P, K>(cache: P, key: K) -> Result<Vec<u8>, Error>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+{
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
         read_hash(cache, &entry.integrity)
     } else {
@@ -53,11 +57,19 @@ pub fn read<P: AsRef<Path>, K: AsRef<str>>(cache: P, key: K) -> Result<Vec<u8>, 
     }
 }
 
-pub fn read_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<Vec<u8>, Error> {
+pub fn read_hash<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>, Error>
+where
+    P: AsRef<Path>
+{
     Ok(read::read(cache.as_ref(), sri)?)
 }
 
-pub fn copy<P: AsRef<Path>, K: AsRef<str>>(cache: P, key: K, to: P) -> Result<u64, Error> {
+pub fn copy<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64, Error>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+    Q: AsRef<Path>,
+{
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
         copy_hash(cache, &entry.integrity, to)
     } else {
@@ -65,11 +77,19 @@ pub fn copy<P: AsRef<Path>, K: AsRef<str>>(cache: P, key: K, to: P) -> Result<u6
     }
 }
 
-pub fn copy_hash<P: AsRef<Path>>(cache: P, sri: &Integrity, to: P) -> Result<u64, Error> {
+pub fn copy_hash<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64, Error>
+where
+    P: AsRef<Path>,
+    Q: AsRef<Path>,
+{
     read::copy(cache.as_ref(), sri, to.as_ref())
 }
 
-pub fn info<P: AsRef<Path>, K: AsRef<str>>(cache: P, key: K) -> Result<Option<Entry>, Error> {
+pub fn info<P, K>(cache: P, key: K) -> Result<Option<Entry>, Error>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+{
     index::find(cache.as_ref(), key.as_ref())
 }
 
