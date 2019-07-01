@@ -2,6 +2,8 @@
 //! caches. It's really fast, really good at concurrency, and it will never
 //! give you corrupted data, even if cache files get corrupted or manipulated.
 
+#![warn(missing_docs, missing_doc_code_examples)]
+
 mod content;
 mod errors;
 mod index;
