@@ -7,6 +7,15 @@ description = "Content-addressable, key-value, high-performance, on-disk cache."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/zkat/cacache-rs"
 homepage = "https://github.com/zkat/cacache-rs"
+readme = "README.md"
+categories = [
+    "caching",
+    "filesystem"
+]
+
+[badges]
+travis-ci = { repository = "zkat/cacache-rs", branch = "latest" }
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 ssri = "3.0.0"
