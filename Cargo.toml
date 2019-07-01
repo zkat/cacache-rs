@@ -1,6 +1,6 @@
 [package]
 name = "cacache"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Kat Marchán <kzm@zkat.tech>"]
 edition = "2018"
 description = "Content-addressable, key-value, high-performance, on-disk cache."
