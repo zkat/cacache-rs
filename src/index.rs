@@ -1,6 +1,6 @@
 use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
 use std::fs::{self, OpenOptions};
+use std::hash::{Hash, Hasher};
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -73,16 +73,14 @@ pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity, Error
         metadata: opts.metadata.unwrap_or_else(|| json!(null)),
     })?;
 
-    let mut buck = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&bucket)?;
+    let mut buck = OpenOptions::new().create(true).append(true).open(&bucket)?;
 
     write!(buck, "\n{}\t{}", hash_entry(&stringified), stringified)?;
     chownr::chownr(&bucket, opts.uid, opts.gid)?;
     Ok(opts
         .sri
-        .or_else(|| "sha1-deadbeef".parse::<Integrity>().ok()).unwrap())
+        .or_else(|| "sha1-deadbeef".parse::<Integrity>().ok())
+        .unwrap())
 }
 
 pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
@@ -125,35 +123,38 @@ pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
             uid: None,
             gid: None,
         },
-    ).map(|_| ())
+    )
+    .map(|_| ())
 }
 
 pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Entry, Error>> {
-WalkDir::new(cache.join(format!("index-v{}", INDEX_VERSION)))
-    .into_iter()
-    .map(|bucket| {
-        let bucket = bucket?;
-        if bucket.file_type().is_dir() {
-            return Ok(Vec::new())
-        }
+    WalkDir::new(cache.join(format!("index-v{}", INDEX_VERSION)))
+        .into_iter()
+        .map(|bucket| {
+            let bucket = bucket?;
+            if bucket.file_type().is_dir() {
+                return Ok(Vec::new());
+            }
 
-        Ok(bucket_entries(bucket.path())?
-            .into_iter()
-            .collect::<HashSet<SerializableEntry>>()
-            .into_iter()
-            .filter_map(|se| if let Some(i) = se.integrity {
-                Some(Entry {
-                    key: se.key,
-                    integrity: i.parse().unwrap(),
-                    time: se.time,
-                    size: se.size,
-                    metadata: se.metadata,
+            Ok(bucket_entries(bucket.path())?
+                .into_iter()
+                .collect::<HashSet<SerializableEntry>>()
+                .into_iter()
+                .filter_map(|se| {
+                    if let Some(i) = se.integrity {
+                        Some(Entry {
+                            key: se.key,
+                            integrity: i.parse().unwrap(),
+                            time: se.time,
+                            size: se.size,
+                            metadata: se.metadata,
+                        })
+                    } else {
+                        None
+                    }
                 })
-            } else {
-                None
-            }).collect()
-        )
-    })
+                .collect())
+        })
         .flat_map(|res| match res {
             Ok(it) => Left(it.into_iter().map(Ok)),
             Err(err) => Right(std::iter::once(Err(err))),
@@ -191,26 +192,27 @@ fn now() -> u128 {
 fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableEntry>, Error> {
     use std::io::{BufRead, BufReader};
     fs::File::open(bucket)
-   .map(|file|
-       BufReader::new(file)
-           .lines()
-           .filter_map(Result::ok)
-           .filter_map(|entry| {
-               let entry_str = match entry.split('\t').collect::<Vec<&str>>()[..] {
-                   [hash, entry_str] if hash_entry(entry_str) == hash => entry_str,
-                   // Something's wrong with the entry. Abort.
-                   _ => return None,
-               };
-               serde_json::from_str::<SerializableEntry>(entry_str).ok()
-           })
-           .collect()
-   ).or_else(|err|
-       if err.kind() == ErrorKind::NotFound {
-           Ok(Vec::new())
-       } else {
-           Err(err.into())
-       }
-   )
+        .map(|file| {
+            BufReader::new(file)
+                .lines()
+                .filter_map(Result::ok)
+                .filter_map(|entry| {
+                    let entry_str = match entry.split('\t').collect::<Vec<&str>>()[..] {
+                        [hash, entry_str] if hash_entry(entry_str) == hash => entry_str,
+                        // Something's wrong with the entry. Abort.
+                        _ => return None,
+                    };
+                    serde_json::from_str::<SerializableEntry>(entry_str).ok()
+                })
+                .collect()
+        })
+        .or_else(|err| {
+            if err.kind() == ErrorKind::NotFound {
+                Ok(Vec::new())
+            } else {
+                Err(err.into())
+            }
+        })
 }
 
 #[cfg(test)]
