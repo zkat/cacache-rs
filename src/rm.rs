@@ -8,14 +8,20 @@ use crate::content::rm;
 use crate::errors::Error;
 use crate::index;
 
+/// Removes an individual index entry. The associated content will be left
+/// intact.
 pub fn entry<P: AsRef<Path>>(cache: P, key: &str) -> Result<(), Error> {
     index::delete(cache.as_ref(), &key)
 }
 
+/// Removes an individual content entry. Any index entries pointing to this
+/// content will become invalidated.
 pub fn content<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<(), Error> {
     rm::rm(cache.as_ref(), &sri)
 }
 
+/// Removes entire contents of the cache, including temporary files, the entry
+/// index, and all content data.
 pub fn all<P: AsRef<Path>>(cache: P) -> Result<(), Error> {
     for entry in cache.as_ref().read_dir()? {
         if let Ok(entry) = entry {
