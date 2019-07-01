@@ -27,13 +27,13 @@ where
 /// Options and flags for opening a new cache file to write data into.
 #[derive(Clone, Default)]
 pub struct PutOpts {
-    pub algorithm: Option<Algorithm>,
-    pub sri: Option<Integrity>,
-    pub size: Option<usize>,
-    pub time: Option<u128>,
-    pub metadata: Option<Value>,
-    pub uid: Option<Uid>,
-    pub gid: Option<Gid>,
+    pub(crate) algorithm: Option<Algorithm>,
+    pub(crate) sri: Option<Integrity>,
+    pub(crate) size: Option<usize>,
+    pub(crate) time: Option<u128>,
+    pub(crate) metadata: Option<Value>,
+    pub(crate) uid: Option<Uid>,
+    pub(crate) gid: Option<Gid>,
 }
 
 impl PutOpts {
@@ -106,11 +106,11 @@ impl PutOpts {
 
 /// A reference to an open file writing to the cache.
 pub struct Put {
-    pub cache: PathBuf,
-    pub key: String,
-    pub written: usize,
+    cache: PathBuf,
+    key: String,
+    written: usize,
     pub(crate) writer: write::Writer,
-    pub opts: PutOpts,
+    opts: PutOpts,
 }
 
 impl Write for Put {
