@@ -4,6 +4,9 @@
 
 #![warn(missing_docs, missing_doc_code_examples)]
 
+pub use ssri::Algorithm;
+pub use serde_json::Value;
+
 mod content;
 mod errors;
 mod index;
