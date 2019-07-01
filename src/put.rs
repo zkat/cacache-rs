@@ -10,6 +10,7 @@ use crate::content::write;
 use crate::errors::Error;
 use crate::index;
 
+/// Writes `data` to the `cache`, indexing it under `key`.
 pub fn data<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity, Error>
 where
     P: AsRef<Path>,
@@ -23,6 +24,7 @@ where
     writer.commit()
 }
 
+/// Options and flags for opening a new cache file to write data into.
 #[derive(Clone, Default)]
 pub struct PutOpts {
     pub algorithm: Option<Algorithm>,
@@ -35,10 +37,12 @@ pub struct PutOpts {
 }
 
 impl PutOpts {
+    /// Creates a blank set of cache writing options.
     pub fn new() -> PutOpts {
         Default::default()
     }
 
+    /// Opens the file handle for writing, returning a Put instance.
     pub fn open<P, K>(self, cache: P, key: K) -> Result<Put, Error>
     where
         P: AsRef<Path>,
@@ -56,31 +60,43 @@ impl PutOpts {
         })
     }
 
+    /// Configures the algorithm to write data under.
     pub fn algorithm(mut self, algo: Algorithm) -> Self {
         self.algorithm = Some(algo);
         self
     }
 
+    /// Sets the expected size of the data to write. If there's a date size
+    /// mismatch, `put.commit()` will return an error.
     pub fn size(mut self, size: usize) -> Self {
         self.size = Some(size);
         self
     }
 
+    /// Sets arbitrary additional metadata to associate with the index entry.
     pub fn metadata(mut self, metadata: Value) -> Self {
         self.metadata = Some(metadata);
         self
     }
 
+    /// Sets the specific time in unix milliseconds to associate with this
+    /// entry. This is usually automatically set to the write time, but can be
+    /// useful to change for tests and such.
     pub fn time(mut self, time: u128) -> Self {
         self.time = Some(time);
         self
     }
 
+    /// Sets the expected integrity hash of the written data. If there's a
+    /// mismatch between this Integrity and the one calculated by the write,
+    /// `put.commit()` will error.
     pub fn integrity(mut self, sri: Integrity) -> Self {
         self.sri = Some(sri);
         self
     }
 
+    /// Configures the uid and gid to write data as. Useful when dropping
+    /// privileges while in `sudo` mode.
     pub fn chown(mut self, uid: Option<Uid>, gid: Option<Gid>) -> Self {
         self.uid = uid;
         self.gid = gid;
@@ -88,6 +104,7 @@ impl PutOpts {
     }
 }
 
+/// A reference to an open file writing to the cache.
 pub struct Put {
     pub cache: PathBuf,
     pub key: String,
@@ -106,6 +123,10 @@ impl Write for Put {
 }
 
 impl Put {
+    /// Closes the Put handle and writes content and index entries. Also
+    /// verifies data against `size` and `integrity` options, if provided.
+    /// Must be called manually in order to complete the writing process,
+    /// otherwise everything will be thrown out.
     pub fn commit(self) -> Result<Integrity, Error> {
         let writer_sri = self.writer.close()?;
         if let Some(sri) = &self.opts.sri {
