@@ -9,20 +9,31 @@ use walkdir;
 /// Error type returned by all API calls.
 #[derive(Fail, Debug)]
 pub enum Error {
+    /// Returned when an index or content entry could not be found during
+    /// lookup.
     #[fail(display = "not found")]
     NotFound,
+    /// Returned when an integrity check has failed.
     #[fail(display = "integrity check failed")]
     IntegrityError,
+    /// Returned when a size check has failed.
     #[fail(display = "size check failed")]
     SizeError,
+    /// Returned when there's an std::io::Error.
     #[fail(display = "{}", _0)]
     Io(#[fail(cause)] io::Error),
+    /// Returned when there's an error with changing uid/gid on an entry.
     #[fail(display = "{}", _0)]
     Chownr(#[fail(cause)] chownr::Error),
+    /// Returned when there's an issue with metadata (de)serialization.
     #[fail(display = "{}", _0)]
     SerdeJson(#[fail(cause)] serde_json::error::Error),
+    /// Returned when a content entry could not be moved to its final
+    /// destination.
     #[fail(display = "{}", _0)]
     PersistError(#[fail(cause)] tempfile::PersistError),
+    /// Returned when something went wrong while traversing the index during
+    /// `cacache::ls`.
     #[fail(display = "{}", _0)]
     WalkDir(#[fail(cause)] walkdir::Error),
 }
