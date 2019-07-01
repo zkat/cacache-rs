@@ -20,5 +20,9 @@ pub mod ls;
 pub mod put;
 pub mod rm;
 
+pub mod async_get;
+pub mod async_put;
+pub mod async_rm;
+
 pub use errors::Error;
 pub use index::Entry;

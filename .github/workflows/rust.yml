@@ -1,26 +1,29 @@
 name: Rust
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
-
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        rust: [stable, beta, nightly]
+        rust: [beta, nightly]
         os: [ubuntu-latest, windows-latest]
 
     steps:
-    - uses: hecrj/setup-rust-action@master
-      with:
-        rust-version: ${{ matrix.rust }}
-    - uses: actions/checkout@v1
-    - name: Components
-      run: rustup component add clippy
-    - name: Build
-      run: cargo build --verbose
-    - name: Clippy
-      run: cargo clippy -- -D warnings
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: hecrj/setup-rust-action@master
+        with:
+          rust-version: ${{ matrix.rust }}
+      - uses: actions/checkout@v1
+      - name: Add Clippy
+        run: rustup component add clippy
+      - name: Add Rustfmt
+        run: rustup component add rustfmt
+      - name: Build
+        run: cargo build --verbose
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+      - name: Run tests
+        run: cargo test --verbose
