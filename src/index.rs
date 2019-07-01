@@ -57,16 +57,17 @@ pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity, Error
         size: opts.size.unwrap_or(0),
         metadata: opts.metadata.unwrap_or_else(|| json!(null)),
     })?;
-    let str = format!("\n{}\t{}", hash_entry(&stringified), stringified);
-    OpenOptions::new()
+
+    let mut buck = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(&bucket)?
-        .write_all(&str.into_bytes())?;
+        .open(&bucket)?;
+
+    write!(buck, "\n{}\t{}", hash_entry(&stringified), stringified)?;
     chownr::chownr(&bucket, opts.uid, opts.gid)?;
     Ok(opts
         .sri
-        .unwrap_or_else(|| "sha1-deadbeef".parse::<Integrity>().unwrap()))
+        .or_else(|| "sha1-deadbeef".parse::<Integrity>().ok()).unwrap())
 }
 
 pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
@@ -109,15 +110,11 @@ pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
             uid: None,
             gid: None,
         },
-    )?;
-    Ok(())
+    ).map(|_| ())
 }
 
 pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Entry, Error>> {
-    let mut path = PathBuf::new();
-    path.push(cache);
-    path.push(format!("index-v{}", INDEX_VERSION));
-    WalkDir::new(path)
+    WalkDir::new(cache.join(format!("index-v{}", INDEX_VERSION)))
         .into_iter()
         .map(|bucket| {
             let bucket = bucket?;
@@ -152,13 +149,11 @@ pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Entry, Error>> {
 
 fn bucket_path(cache: &Path, key: &str) -> PathBuf {
     let hashed = hash_key(&key);
-    let mut path = PathBuf::new();
-    path.push(cache);
-    path.push(format!("index-v{}", INDEX_VERSION));
-    path.push(&hashed[0..2]);
-    path.push(&hashed[2..4]);
-    path.push(&hashed[4..]);
-    path
+    cache
+        .join(format!("index-v{}", INDEX_VERSION))
+        .join(&hashed[0..2])
+        .join(&hashed[2..4])
+        .join(&hashed[4..])
 }
 
 fn hash_key(key: &str) -> String {
@@ -181,33 +176,28 @@ fn now() -> u128 {
 }
 
 fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableEntry>, Error> {
-    let lines = match fs::read_to_string(bucket) {
-        Ok(data) => Ok(data),
-        Err(ref e) if e.kind() == ErrorKind::NotFound => Ok(String::from("")),
-        err => err,
-    }?;
-    Ok(lines.split('\n').fold(vec![], |mut acc, entry: &str| {
-        if entry.is_empty() {
-            return acc;
-        }
-        let entry_str = match entry.split('\t').collect::<Vec<&str>>()[..] {
-            [hash, entry_str] => {
-                if hash_entry(entry_str) != hash {
-                    // Hash is no good! Corruption or malice? Doesn't matter!
-                    // EJECT EJECT
-                    return acc;
-                } else {
-                    entry_str
-                }
-            }
-            // Something's wrong with the entry. Abort.
-            _ => return acc,
-        };
-        if let Ok(entry) = serde_json::from_str::<SerializableEntry>(entry_str) {
-            acc.push(entry)
-        }
-        acc
-    }))
+    use std::io::{BufRead, BufReader};
+    fs::File::open(bucket)
+   .map(|file|
+       BufReader::new(file)
+           .lines()
+           .filter_map(Result::ok)
+           .filter_map(|entry| {
+               let entry_str = match entry.split('\t').collect::<Vec<&str>>()[..] {
+                   [hash, entry_str] if hash_entry(entry_str) == hash => entry_str,
+                   // Something's wrong with the entry. Abort.
+                   _ => return None,
+               };
+               serde_json::from_str::<SerializableEntry>(entry_str).ok()
+           })
+           .collect()
+   ).or_else(|err|
+       if err.kind() == ErrorKind::NotFound {
+           Ok(Vec::new())
+       } else {
+           Err(err.into())
+       }
+   )
 }
 
 #[cfg(test)]
