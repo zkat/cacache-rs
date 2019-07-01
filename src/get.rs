@@ -29,8 +29,7 @@ where
     K: AsRef<str>,
 {
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
-        let reader = read::open(cache.as_ref(), entry.integrity)?;
-        Ok(Get { reader })
+        open_hash(cache, entry.integrity)
     } else {
         Err(Error::NotFound)
     }
