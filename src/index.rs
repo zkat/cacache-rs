@@ -24,10 +24,15 @@ const INDEX_VERSION: &str = "5";
 /// Represents a cache index entry, which points to content.
 #[derive(PartialEq, Debug)]
 pub struct Entry {
+    /// Key this entry is stored under.
     pub key: String,
+    /// Integrity hash for the stored data. Acts as a key into {cache}/content.
     pub integrity: Integrity,
+    /// Timestamp in unix milliseconds when this entry was written.
     pub time: u128,
+    /// Size of data associated with this entry.
     pub size: usize,
+    /// Arbitrary JSON metadata associated with this entry.
     pub metadata: Value,
 }
 
