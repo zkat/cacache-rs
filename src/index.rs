@@ -1,4 +1,5 @@
-use std::collections::hash_map::HashMap;
+use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 use std::fs::{self, OpenOptions};
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
@@ -36,13 +37,27 @@ pub struct Entry {
     pub metadata: Value,
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 struct SerializableEntry {
     key: String,
     integrity: Option<String>,
     time: u128,
     size: usize,
     metadata: Value,
+}
+
+impl PartialEq for SerializableEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.key == other.key
+    }
+}
+
+impl Eq for SerializableEntry {}
+
+impl Hash for SerializableEntry {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.key.hash(state);
+    }
 }
 
 pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity, Error> {
@@ -114,33 +129,31 @@ pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
 }
 
 pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Entry, Error>> {
-    WalkDir::new(cache.join(format!("index-v{}", INDEX_VERSION)))
-        .into_iter()
-        .map(|bucket| {
-            let bucket = bucket?;
-            if bucket.file_type().is_dir() {
-                return Ok(core::iter::empty().collect::<Vec<Entry>>());
-            }
-            let entries = bucket_entries(bucket.path())?;
-            let mut dedupe: HashMap<String, SerializableEntry> = HashMap::new();
-            for entry in entries {
-                dedupe.insert(entry.key.clone(), entry);
-            }
-            let iter = dedupe
-                .into_iter()
-                .filter(|se| se.1.integrity.is_some())
-                .map(|se| {
-                    let se = se.1;
-                    Entry {
-                        key: se.key,
-                        integrity: se.integrity.unwrap().parse().unwrap(),
-                        time: se.time,
-                        size: se.size,
-                        metadata: se.metadata,
-                    }
-                });
-            Ok(iter.collect::<Vec<Entry>>())
-        })
+WalkDir::new(cache.join(format!("index-v{}", INDEX_VERSION)))
+    .into_iter()
+    .map(|bucket| {
+        let bucket = bucket?;
+        if bucket.file_type().is_dir() {
+            return Ok(Vec::new())
+        }
+
+        Ok(bucket_entries(bucket.path())?
+            .into_iter()
+            .collect::<HashSet<SerializableEntry>>()
+            .into_iter()
+            .filter_map(|se| if let Some(i) = se.integrity {
+                Some(Entry {
+                    key: se.key,
+                    integrity: i.parse().unwrap(),
+                    time: se.time,
+                    size: se.size,
+                    metadata: se.metadata,
+                })
+            } else {
+                None
+            }).collect()
+        )
+    })
         .flat_map(|res| match res {
             Ok(it) => Left(it.into_iter().map(Ok)),
             Err(err) => Right(std::iter::once(Err(err))),
