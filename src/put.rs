@@ -23,7 +23,7 @@ where
     writer.commit()
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct PutOpts {
     pub algorithm: Option<Algorithm>,
     pub sri: Option<Integrity>,
