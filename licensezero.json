@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "licensezero": [
+    {
+      "agentSignature": "d25f4e3c428331f860ee973bf021e788409c89d672c9c1595ee761ba98e42a706ecce3914d653f6898c1f1279854f3b149e16348542321eabf2a276b94321c0b",
+      "license": {
+        "homepage": "https://github.com/zkat/cacache",
+        "jurisdiction": "US-CA",
+        "name": "Kat Marchán",
+        "projectID": "e4110c8e-765a-4e11-b49c-cd5fdf515a29",
+        "publicKey": "5f60082194dc6b4a3971fa7397be663c81313bcaa489af96cfdef1c413b1b01a",
+        "terms": "parity",
+        "version": "6.0.0"
+      },
+      "licensorSignature": "5972b2903ecb1c10e75c1a046a09d3801b4e43c9488a3c0e8d9e315090f1816fa0d73fb285b8174bddee6fe6d9106063ef02963fbc5bcf0d566efc96765a0204"
+    }
+  ]
+}
