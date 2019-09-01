@@ -1,0 +1,19 @@
+name: Rust
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Components
+      run: rustup component add clippy
+    - name: Build
+      run: cargo build --verbose
+    - name: Clippy
+      run: cargo clippy -- -D warnings
+    - name: Run tests
+      run: cargo test --verbose
