@@ -22,7 +22,7 @@ pub fn content_path(cache: &Path, sri: &Integrity) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::content_path;
+    use super::*;
     use ssri::Integrity;
     use std::path::Path;
 
@@ -30,9 +30,16 @@ mod tests {
     fn basic_test() {
         let sri = Integrity::from(b"hello world");
         let cpath = content_path(Path::new("~/.my-cache"), &sri);
+        let mut wanted = PathBuf::new();
+        wanted.push("~/.my-cache");
+        wanted.push(format!("content-v{}", CONTENT_VERSION));
+        wanted.push("sha256");
+        wanted.push("b9");
+        wanted.push("4d");
+        wanted.push("27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9");
         assert_eq!(
             cpath.to_str().unwrap(),
-            "~/.my-cache/content-v2/sha256/b9/4d/27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+            wanted.to_str().unwrap()
         );
     }
 }

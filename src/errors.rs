@@ -1,5 +1,6 @@
 use std::io;
 
+#[cfg(unix)]
 use chownr;
 use failure::Fail;
 use serde_json;
@@ -24,6 +25,7 @@ pub enum Error {
     Io(#[fail(cause)] io::Error),
     /// Returned when there's an error with changing uid/gid on an entry.
     #[fail(display = "{}", _0)]
+    #[cfg(unix)]
     Chownr(#[fail(cause)] chownr::Error),
     /// Returned when there's an issue with metadata (de)serialization.
     #[fail(display = "{}", _0)]
@@ -44,6 +46,7 @@ impl From<std::io::Error> for Error {
     }
 }
 
+#[cfg(unix)]
 impl From<chownr::Error> for Error {
     fn from(error: chownr::Error) -> Self {
         Error::Chownr(error)

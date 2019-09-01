@@ -2,6 +2,7 @@
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
+#[cfg(unix)]
 use nix::unistd::{Gid, Uid};
 use serde_json::Value;
 use ssri::{Algorithm, Integrity};
@@ -32,7 +33,9 @@ pub struct PutOpts {
     pub(crate) size: Option<usize>,
     pub(crate) time: Option<u128>,
     pub(crate) metadata: Option<Value>,
+    #[cfg(unix)]
     pub(crate) uid: Option<Uid>,
+    #[cfg(unix)]
     pub(crate) gid: Option<Gid>,
 }
 
@@ -97,6 +100,7 @@ impl PutOpts {
 
     /// Configures the uid and gid to write data as. Useful when dropping
     /// privileges while in `sudo` mode.
+    #[cfg(unix)]
     pub fn chown(mut self, uid: Option<Uid>, gid: Option<Gid>) -> Self {
         self.uid = uid;
         self.gid = gid;

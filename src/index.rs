@@ -5,6 +5,7 @@ use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(unix)]
 use chownr;
 use digest::Digest;
 use either::{Left, Right};
@@ -62,9 +63,14 @@ impl Hash for SerializableEntry {
 
 pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity, Error> {
     let bucket = bucket_path(&cache, &key);
-    if let Some(path) = mkdirp::mkdirp(bucket.parent().unwrap())? {
-        chownr::chownr(&path, opts.uid, opts.gid)?;
+    #[cfg(unix)]
+    {
+        if let Some(path) = mkdirp::mkdirp(bucket.parent().unwrap())? {
+            chownr::chownr(&path, opts.uid, opts.gid)?;
+        }
     }
+    #[cfg(windows)]
+    mkdirp::mkdirp(bucket.parent().unwrap())?;
     let stringified = serde_json::to_string(&SerializableEntry {
         key: key.to_owned(),
         integrity: opts.sri.clone().map(|x| x.to_string()),
@@ -76,6 +82,7 @@ pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity, Error
     let mut buck = OpenOptions::new().create(true).append(true).open(&bucket)?;
 
     write!(buck, "\n{}\t{}", hash_entry(&stringified), stringified)?;
+    #[cfg(unix)]
     chownr::chownr(&bucket, opts.uid, opts.gid)?;
     Ok(opts
         .sri
@@ -120,7 +127,9 @@ pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
             sri: None,
             time: None,
             metadata: None,
+            #[cfg(unix)]
             uid: None,
+            #[cfg(unix)]
             gid: None,
         },
     )

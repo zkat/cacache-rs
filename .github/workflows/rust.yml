@@ -12,6 +12,9 @@ jobs:
         os: [ubuntu-latest, windows-latest]
 
     steps:
+    - uses: hecrj/setup-rust-action@master
+      with:
+        rust-version: ${{ matrix.rust }}
     - uses: actions/checkout@v1
     - name: Components
       run: rustup component add clippy
