@@ -43,7 +43,4 @@ assignment is required to contribute to this project.
 
 For full authorship information, see the version control history.
 
-Except as otherwise noted (below and/or in individual files), this project is
-licensed under the Apache License, Version 2.0
-<http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-<http://opensource.org/licenses/MIT>, at your option.
+This project is licensed under the [Mozilla Public License, v2](http://mozilla.org/MPL/2.0/).
