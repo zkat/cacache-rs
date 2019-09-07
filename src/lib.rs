@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at http://mozilla.org/MPL/2.0/.
+
 //! cacache is a Rust library for managing local key and content address
 //! caches. It's really fast, really good at concurrency, and it will never
 //! give you corrupted data, even if cache files get corrupted or manipulated.
