@@ -41,9 +41,6 @@ mod tests {
         wanted.push("b9");
         wanted.push("4d");
         wanted.push("27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9");
-        assert_eq!(
-            cpath.to_str().unwrap(),
-            wanted.to_str().unwrap()
-        );
+        assert_eq!(cpath.to_str().unwrap(), wanted.to_str().unwrap());
     }
 }

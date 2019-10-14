@@ -26,10 +26,11 @@ where
         .algorithm(Algorithm::Sha256)
         .open(cache.as_ref(), key.as_ref())?;
     writer.write_all(data.as_ref())?;
+    writer.flush()?;
     writer.commit()
 }
 
-/// Options and flags for opening a new cache file to write data into.
+/// Builder for pptions and flags for opening a new cache file to write data into.
 #[derive(Clone, Default)]
 pub struct PutOpts {
     pub(crate) algorithm: Option<Algorithm>,
@@ -135,7 +136,7 @@ impl Put {
     /// verifies data against `size` and `integrity` options, if provided.
     /// Must be called manually in order to complete the writing process,
     /// otherwise everything will be thrown out.
-    pub fn commit(self) -> Result<Integrity, Error> {
+    pub fn commit(mut self) -> Result<Integrity, Error> {
         let writer_sri = self.writer.close()?;
         if let Some(sri) = &self.opts.sri {
             // TODO - ssri should have a .matches method
@@ -148,13 +149,29 @@ impl Put {
             if matched.is_none() {
                 return Err(Error::IntegrityError);
             }
+        } else {
+            self.opts.sri = Some(writer_sri);
         }
         if let Some(size) = self.opts.size {
             if size != self.written {
                 return Err(Error::SizeError);
             }
         }
-        index::insert(&self.cache, &self.key, self.opts)?;
-        Ok(writer_sri)
+        index::insert(&self.cache, &self.key, self.opts)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::get;
+
+    #[test]
+    fn round_trip() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        data(&dir, "hello", b"hello").unwrap();
+        let data = get::read(&dir, "hello").unwrap();
+        assert_eq!(data, b"hello");
     }
 }
