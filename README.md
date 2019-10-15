@@ -4,6 +4,18 @@ A Rust port of [`cacache` for Node.js](https://npm.im/cacache).
 
 A high-performance, concurrent, content-addressable disk cache.
 
+## Example
+
+```rust
+use cacache;
+use tempfile;
+let tmp = tempfile::tempdir().unwrap();
+let dir = tmp.path().to_owned();
+cacache::put::data(&dir, "key", b"my-data").unwrap();
+let data = cacache::get::read(&dir, "key").unwrap();
+assert_eq!(data, b"my-data");
+```
+
 ## Install
 
 Using [`cargo-edit`](https://crates.io/crates/cargo-edit)
