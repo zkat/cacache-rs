@@ -12,21 +12,21 @@ Using [`cargo-edit`](https://crates.io/crates/cargo-edit)
 
 ## Documentation
 
-* [API Docs](https://docs.rs/cacache)
+- [API Docs](https://docs.rs/cacache)
 
 ## Features
 
-* Extraction by key or by content address (shasum, etc)
-* [Subresource Integrity](#integrity) web standard support
-* Multi-hash support - safely host sha1, sha512, etc, in a single cache
-* Automatic content deduplication
-* Fault tolerance (immune to corruption, partial writes, process races, etc)
-* Consistency guarantees on read and write (full data verification)
-* Lockless, high-concurrency cache access
-* Large file support
-* Pretty darn fast
-* Arbitrary metadata storage
-* Punches nazis
+- Extraction by key or by content address (shasum, etc)
+- [Subresource Integrity](#integrity) web standard support
+- Multi-hash support - safely host sha1, sha512, etc, in a single cache
+- Automatic content deduplication
+- Fault tolerance (immune to corruption, partial writes, process races, etc)
+- Consistency guarantees on read and write (full data verification)
+- Lockless, high-concurrency cache access
+- Large file support
+- Pretty darn fast
+- Arbitrary metadata storage
+- Punches nazis
 
 ## Contributing
 
@@ -38,9 +38,8 @@ Happy hacking!
 
 ## License
 
-Copyrights in this project are retained by their contributors. No copyright
-assignment is required to contribute to this project.
+This project is licensed under [the Parity License](LICENSE.md). Third-party contributions are licensed under Apache-2.0 and belong to their respective authors.
 
-For full authorship information, see the version control history.
+The Parity License is a copyleft license that, unlike the GPL family, allows you to license derivative and connected works under permissive licenses like MIT or Apache-2.0. It's free to use provided the work you do is freely available!
 
-This project is licensed under the [Mozilla Public License, v2](http://mozilla.org/MPL/2.0/).
+For proprietary use, please [contact me](mailto:kzm@zkat.tech?subject=cacache%20license), or just [sponsor me on GitHub](https://github.com/users/zkat/sponsorship) under the appropriate tier to acquire a proprietary-use license! This funding model helps me make my work sustainable and compensates me for the work it took to write this crate!
