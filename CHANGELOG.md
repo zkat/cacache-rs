@@ -1,6 +1,24 @@
+<a name="2.0.0"></a>
+
+## 2.0.0 (2019-10-15)
+
+#### Features
+
+- **async:** add extra async versions of APIs (#6) ([18190bfc](https://github.com/zkat/cacache-rs/commit/18190bfc356fdf871f9f284b54fc48da32e44ead))
+- **license:**
+  - relicense to Parity+Apache ([4d9404b9](https://github.com/zkat/cacache-rs/commit/4d9404b9a606cfc52fce06999ab5a640bda8fc26))
+
+#### Bug Fixes
+
+- **windows:** add windows support ([97f44573](https://github.com/zkat/cacache-rs/commit/97f44573d55c96172aecf4be553eba064e43d58e))
+
+#### Breaking Changes
+
+- **license:** relicense to Parity+Apache ([4d9404b9](https://github.com/zkat/cacache-rs/commit/4d9404b9a606cfc52fce06999ab5a640bda8fc26))
+
 <a name="1.0.1"></a>
 
-## cacache changelog (2019-07-01)
+## 1.0.1 (2019-07-01)
 
 Initial History generation.
 
