@@ -1,3 +1,9 @@
+<a name="2.0.1"></a>
+
+## 2.0.1 (2019-10-15)
+
+- Just adds some examples of the core API.
+
 <a name="2.0.0"></a>
 
 ## 2.0.0 (2019-10-15)
