@@ -59,7 +59,6 @@ pub fn open(cache: &Path, sri: Integrity) -> Result<Reader, Error> {
     })
 }
 
-#[allow(clippy::needless_lifetimes)]
 pub async fn open_async(cache: &Path, sri: Integrity) -> Result<AsyncReader, Error> {
     Ok(AsyncReader {
         fd: async_std::fs::File::open(cache).await?,
