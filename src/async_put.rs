@@ -121,7 +121,7 @@ mod tests {
         task::block_on(async {
             data(&dir, "hello", b"hello").await.unwrap();
         });
-        let data = task::block_on(async { async_get::read(&dir, "hello").await.unwrap() });
+        let data = task::block_on(async { async_get::data(&dir, "hello").await.unwrap() });
         assert_eq!(data, b"hello");
     }
 }

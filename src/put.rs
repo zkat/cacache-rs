@@ -160,14 +160,13 @@ impl Put {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::get;
 
     #[test]
     fn round_trip() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
         data(&dir, "hello", b"hello").unwrap();
-        let data = get::read(&dir, "hello").unwrap();
+        let data = crate::get::data(&dir, "hello").unwrap();
         assert_eq!(data, b"hello");
     }
 }

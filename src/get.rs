@@ -57,13 +57,13 @@ where
 
 /// Reads the entire contents of a cache file into a bytes vector, looking the
 /// data up by key.
-pub fn read<P, K>(cache: P, key: K) -> Result<Vec<u8>, Error>
+pub fn data<P, K>(cache: P, key: K) -> Result<Vec<u8>, Error>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
 {
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
-        read_hash(cache, &entry.integrity)
+        data_hash(cache, &entry.integrity)
     } else {
         Err(Error::NotFound)
     }
@@ -71,7 +71,7 @@ where
 
 /// Reads the entire contents of a cache file into a bytes vector, looking the
 /// data up by its content address.
-pub fn read_hash<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>, Error>
+pub fn data_hash<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>, Error>
 where
     P: AsRef<Path>,
 {
