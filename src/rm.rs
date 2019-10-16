@@ -33,20 +33,19 @@ pub fn all<P: AsRef<Path>>(cache: P) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use cacache;
-    use tempfile;
+    use super::*;
 
     #[test]
     fn rm_test() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        cacache::put::data(&dir, "key", b"my-data").unwrap();
-        let data = cacache::get::read(&dir, "key").unwrap();
+        crate::put::data(&dir, "key", b"my-data").unwrap();
+        let data = crate::get::read(&dir, "key").unwrap();
         assert_eq!(data, b"my-data");
         print!("{:?}", data);
-        cacache::rm::all(&dir).unwrap();
+        all(&dir).unwrap();
         // panics on unwrap
-        let new_data = cacache::get::read(&dir, "key").unwrap_or([].to_vec());
+        let new_data = crate::get::read(&dir, "key").unwrap_or([].to_vec());
         assert_eq!(new_data.len(), 0);
     }
 }
