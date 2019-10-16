@@ -1,19 +1,27 @@
 # cacache
 
-A Rust port of [`cacache` for Node.js](https://npm.im/cacache).
-
-A high-performance, concurrent, content-addressable disk cache.
+A high-performance, concurrent, content-addressable disk cache, optimized for async APIs.
 
 ## Example
 
 ```rust
 use cacache;
-use tempfile;
-let tmp = tempfile::tempdir().unwrap();
-let dir = tmp.path().to_owned();
-cacache::put::data(&dir, "key", b"my-data").unwrap();
-let data = cacache::get::read(&dir, "key").unwrap();
-assert_eq!(data, b"my-data");
+use async_attributes;
+
+#[async_attributes::main]
+async fn main() -> Result<(), cacache::Error> {
+    let dir = String::from("./my-cache");
+
+    // Write some data!
+    cacache::put::data(&dir, "key", b"my-async-data").await?;
+
+    // Get the data back!
+    let data = cacache::get::data(&dir, "key").await?;
+    assert_eq!(data, b"my-async-data");
+
+    // Clean up the data!
+    cacache::rm::all(&dir).await?;
+}
 ```
 
 ## Install
@@ -28,6 +36,7 @@ Using [`cargo-edit`](https://crates.io/crates/cargo-edit)
 
 ## Features
 
+- First-class async support, using [`async-std`](https://crates.io/crates/async-std) as its runtime. Sync APIs are available but secondary.
 - Extraction by key or by content address (shasum, etc)
 - [Subresource Integrity](#integrity) web standard support
 - Multi-hash support - safely host sha1, sha512, etc, in a single cache
