@@ -46,7 +46,7 @@ mod tests {
         print!("{:?}", data);
         cacache::rm::all(&dir).unwrap();
         // panics on unwrap
-        let new_data =cacache::get::read(&dir, "key").unwrap_or([].to_vec());
+        let new_data = cacache::get::read(&dir, "key").unwrap_or([].to_vec());
         assert_eq!(new_data.len(), 0);
     }
 }
