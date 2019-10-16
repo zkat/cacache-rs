@@ -18,6 +18,7 @@ travis-ci = { repository = "zkat/cacache-rs", branch = "latest" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
+cacache = "2.0.1"
 ssri = "4.0.0"
 hex = "0.3.2"
 tempfile = "3.0.8"
