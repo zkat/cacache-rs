@@ -33,19 +33,33 @@ pub fn all<P: AsRef<Path>>(cache: P) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
-    fn rm_test() {
+    fn all() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        crate::put::data(&dir, "key", b"my-data").unwrap();
-        let data = crate::get::read(&dir, "key").unwrap();
-        assert_eq!(data, b"my-data");
-        print!("{:?}", data);
-        all(&dir).unwrap();
-        // panics on unwrap
-        let new_data = crate::get::read(&dir, "key").unwrap_or([].to_vec());
-        assert_eq!(new_data.len(), 0);
+        let sri = crate::put::data(&dir, "key", b"my-data").unwrap();
+
+        crate::rm::all(&dir).unwrap();
+
+        let new_entry = crate::get::info(&dir, "key").unwrap();
+        assert_eq!(new_entry, None);
+
+        let data_exists = crate::get::hash_exists(&dir, &sri);
+        assert_eq!(data_exists, false);
+    }
+
+    #[test]
+    fn entry() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::put::data(&dir, "key", b"my-data").unwrap();
+
+        crate::rm::entry(&dir, "key").unwrap();
+
+        let new_entry = crate::get::info(&dir, "key").unwrap();
+        assert_eq!(new_entry, None);
+
+        let data_exists = crate::get::hash_exists(&dir, &sri);
+        assert_eq!(data_exists, true);
     }
 }
