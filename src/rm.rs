@@ -30,3 +30,36 @@ pub fn all<P: AsRef<Path>>(cache: P) -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn all() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::put::data(&dir, "key", b"my-data").unwrap();
+
+        crate::rm::all(&dir).unwrap();
+
+        let new_entry = crate::get::info(&dir, "key").unwrap();
+        assert_eq!(new_entry, None);
+
+        let data_exists = crate::get::hash_exists(&dir, &sri);
+        assert_eq!(data_exists, false);
+    }
+
+    #[test]
+    fn entry() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::put::data(&dir, "key", b"my-data").unwrap();
+
+        crate::rm::entry(&dir, "key").unwrap();
+
+        let new_entry = crate::get::info(&dir, "key").unwrap();
+        assert_eq!(new_entry, None);
+
+        let data_exists = crate::get::hash_exists(&dir, &sri);
+        assert_eq!(data_exists, true);
+    }
+}
