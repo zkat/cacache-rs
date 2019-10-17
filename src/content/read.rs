@@ -53,15 +53,17 @@ impl AsyncReader {
 }
 
 pub fn open(cache: &Path, sri: Integrity) -> Result<Reader, Error> {
+    let cpath = path::content_path(&cache, &sri);
     Ok(Reader {
-        fd: File::open(cache)?,
+        fd: File::open(cpath)?,
         checker: IntegrityChecker::new(sri),
     })
 }
 
 pub async fn open_async(cache: &Path, sri: Integrity) -> Result<AsyncReader, Error> {
+    let cpath = path::content_path(&cache, &sri);
     Ok(AsyncReader {
-        fd: async_std::fs::File::open(cache).await?,
+        fd: async_std::fs::File::open(cpath).await?,
         checker: IntegrityChecker::new(sri),
     })
 }

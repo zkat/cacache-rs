@@ -40,6 +40,25 @@ impl AsyncGet {
 
 /// Opens a new file handle into the cache, looking it up in the index using
 /// `key`.
+///
+/// ## Example
+/// ```no_run
+/// # use async_std::prelude::*;
+/// # use async_std::task;
+/// # fn main() -> Result<(), cacache::Error> {
+/// # task::block_on(async {
+/// #   example().await.unwrap();
+/// # });
+/// # Ok(())
+/// # }
+/// #
+/// # async fn example() -> Result<(), cacache::Error> {
+/// let mut handle = cacache::get::open("./my-cache", "my-key").await?;
+/// let mut str = String::new();
+/// handle.read_to_string(&mut str).await?;
+/// # Ok(())
+/// # }
+/// ```
 pub async fn open<P, K>(cache: P, key: K) -> Result<AsyncGet, Error>
 where
     P: AsRef<Path>,
@@ -53,6 +72,26 @@ where
 }
 
 /// Opens a new file handle into the cache, based on its integrity address.
+///
+/// ## Example
+/// ```no_run
+/// # use async_std::prelude::*;
+/// # use async_std::task;
+/// # fn main() -> Result<(), cacache::Error> {
+/// # task::block_on(async {
+/// #   example().await.unwrap();
+/// # });
+/// # Ok(())
+/// # }
+/// #
+/// # async fn example() -> Result<(), cacache::Error> {
+/// let sri = cacache::put::data("./my-cache", "key", b"hello world").await?;
+/// let mut handle = cacache::get::open_hash("./my-cache", sri).await?;
+/// let mut str = String::new();
+/// handle.read_to_string(&mut str).await?;
+/// # Ok(())
+/// # }
+/// ```
 pub async fn open_hash<P>(cache: P, sri: Integrity) -> Result<AsyncGet, Error>
 where
     P: AsRef<Path>,
@@ -148,8 +187,19 @@ impl Get {
     }
 }
 
-/// Opens a new file handle into the cache, looking it up in the index using
-/// `key`.
+/// Opens a new synchronous file handle into the cache, looking it up in the
+/// index using `key`.
+///
+/// ## Example
+/// ```no_run
+/// # fn main() -> Result<(), cacache::Error> {
+/// # use std::io::Read;
+/// let mut handle = cacache::get::open_sync("./my-cache", "my-key")?;
+/// let mut str = String::new();
+/// handle.read_to_string(&mut str)?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn open_sync<P, K>(cache: P, key: K) -> Result<Get, Error>
 where
     P: AsRef<Path>,
@@ -162,7 +212,19 @@ where
     }
 }
 
-/// Opens a new file handle into the cache, based on its integrity address.
+/// Opens a new synchronous file handle into the cache, based on its integrity address.
+///
+/// ## Example
+/// ```no_run
+/// # fn main() -> Result<(), cacache::Error> {
+/// # use std::io::Read;
+/// let sri = cacache::put::data_sync("./my-cache", "key", b"hello world")?;
+/// let mut handle = cacache::get::open_hash_sync("./my-cache", sri)?;
+/// let mut str = String::new();
+/// handle.read_to_string(&mut str)?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn open_hash_sync<P>(cache: P, sri: Integrity) -> Result<Get, Error>
 where
     P: AsRef<Path>,
@@ -230,4 +292,69 @@ where
 /// Returns true if the given hash exists in the cache.
 pub fn hash_exists_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> bool {
     read::has_content(cache.as_ref(), &sri).is_some()
+}
+
+#[cfg(test)]
+mod tests {
+    use async_std::prelude::*;
+    use async_std::task;
+    use tempfile;
+
+    #[test]
+    fn test_open() {
+        task::block_on(async {
+            let tmp = tempfile::tempdir().unwrap();
+            let dir = tmp.path().to_owned();
+            crate::put::data(&dir, "my-key", b"hello world")
+                .await
+                .unwrap();
+
+            let mut handle = crate::get::open(&dir, "my-key").await.unwrap();
+            let mut str = String::new();
+            handle.read_to_string(&mut str).await.unwrap();
+            assert_eq!(str, String::from("hello world"));
+        })
+    }
+
+    #[test]
+    fn test_open_hash() {
+        task::block_on(async {
+            let tmp = tempfile::tempdir().unwrap();
+            let dir = tmp.path().to_owned();
+            let sri = crate::put::data(&dir, "my-key", b"hello world")
+                .await
+                .unwrap();
+
+            let mut handle = crate::get::open_hash(&dir, sri).await.unwrap();
+            let mut str = String::new();
+            handle.read_to_string(&mut str).await.unwrap();
+            assert_eq!(str, String::from("hello world"));
+        })
+    }
+
+    #[test]
+    fn test_open_sync() {
+        use std::io::prelude::*;
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        crate::put::data_sync(&dir, "my-key", b"hello world").unwrap();
+
+        let mut handle = crate::get::open_sync(&dir, "my-key").unwrap();
+        let mut str = String::new();
+        handle.read_to_string(&mut str).unwrap();
+        assert_eq!(str, String::from("hello world"));
+    }
+
+    #[test]
+    fn test_open_hash_sync() {
+        use std::io::prelude::*;
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::put::data_sync(&dir, "my-key", b"hello world").unwrap();
+
+        let mut handle = crate::get::open_hash_sync(&dir, sri).unwrap();
+        let mut str = String::new();
+        handle.read_to_string(&mut str).unwrap();
+        assert_eq!(str, String::from("hello world"));
+    }
 }
