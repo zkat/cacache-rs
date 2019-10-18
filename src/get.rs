@@ -247,7 +247,7 @@ where
 }
 
 /// Gets entry information and metadata for a certain key.
-pub async fn info<P, K>(cache: P, key: K) -> Result<Option<Entry>, Error>
+pub async fn entry<P, K>(cache: P, key: K) -> Result<Option<Entry>, Error>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
@@ -439,7 +439,7 @@ where
 }
 
 /// Gets entry information and metadata for a certain key.
-pub fn info_sync<P, K>(cache: P, key: K) -> Result<Option<Entry>, Error>
+pub fn entry_sync<P, K>(cache: P, key: K) -> Result<Option<Entry>, Error>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
