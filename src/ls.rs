@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::index;
 
-/// Returns an iterator that lists all cache index entries.
-pub fn all<P: AsRef<Path>>(cache: P) -> impl Iterator {
+/// Returns a synchronous iterator that lists all cache index entries.
+pub fn all_sync<P: AsRef<Path>>(cache: P) -> impl Iterator {
     index::ls(cache.as_ref())
 }
