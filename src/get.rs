@@ -11,6 +11,10 @@ use crate::content::read::{self, AsyncReader, Reader};
 use crate::errors::Error;
 use crate::index::{self, Entry};
 
+// ---------
+// Async API
+// ---------
+
 /// File handle for asynchronously reading from a content entry.
 ///
 /// Make sure to call `.check()` when done reading to verify that the
@@ -33,6 +37,27 @@ impl AsyncGet {
     /// Checks that data read from disk passes integrity checks. Returns the
     /// algorithm that was used verified the data. Should be called only after
     /// all data has been read from disk.
+    ///
+    /// ## Example
+    /// ```no_run
+    /// # use async_std::prelude::*;
+    /// # use async_std::task;
+    /// # fn main() -> Result<(), cacache::Error> {
+    /// # task::block_on(async {
+    /// #   example().await.unwrap();
+    /// # });
+    /// # Ok(())
+    /// # }
+    /// #
+    /// # async fn example() -> Result<(), cacache::Error> {
+    /// let mut handle = cacache::get::open("./my-cache", "my-key").await?;
+    /// let mut str = String::new();
+    /// handle.read_to_string(&mut str).await?;
+    /// // Remember to check that the data you got was correct!
+    /// handle.check()?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn check(self) -> Result<Algorithm, Error> {
         self.reader.check()
     }
@@ -164,6 +189,23 @@ where
 }
 
 /// Copies a cache entry by key to a specified location.
+///
+/// ## Example
+/// ```no_run
+/// # use async_std::prelude::*;
+/// # use async_std::task;
+/// # fn main() -> Result<(), cacache::Error> {
+/// # task::block_on(async {
+/// #   example().await.unwrap();
+/// # });
+/// # Ok(())
+/// # }
+/// #
+/// # async fn example() -> Result<(), cacache::Error> {
+/// cacache::get::copy("./my-cache", "my-key", "./data.txt").await?;
+/// # Ok(())
+/// # }
+/// ```
 pub async fn copy<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64, Error>
 where
     P: AsRef<Path>,
@@ -178,6 +220,24 @@ where
 }
 
 /// Copies a cache entry by integrity address to a specified location.
+///
+/// ## Example
+/// ```no_run
+/// # use async_std::prelude::*;
+/// # use async_std::task;
+/// # fn main() -> Result<(), cacache::Error> {
+/// # task::block_on(async {
+/// #   example().await.unwrap();
+/// # });
+/// # Ok(())
+/// # }
+/// #
+/// # async fn example() -> Result<(), cacache::Error> {
+/// let sri = cacache::put::data("./my-cache", "my-key", b"hello world").await?;
+/// cacache::get::copy_hash("./my-cache", &sri, "./data.txt").await?;
+/// # Ok(())
+/// # }
+/// ```
 pub async fn copy_hash<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64, Error>
 where
     P: AsRef<Path>,
@@ -202,25 +262,42 @@ pub async fn hash_exists<P: AsRef<Path>>(cache: P, sri: &Integrity) -> bool {
         .is_some()
 }
 
+// ---------------
+// Synchronous API
+// ---------------
+
 /// File handle for reading from a content entry.
 ///
 /// Make sure to call `get.check()` when done reading
 /// to verify that the extracted data passes integrity
 /// verification.
-pub struct Get {
+pub struct SyncGet {
     reader: Reader,
 }
 
-impl std::io::Read for Get {
+impl std::io::Read for SyncGet {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.reader.read(buf)
     }
 }
 
-impl Get {
+impl SyncGet {
     /// Checks that data read from disk passes integrity checks. Returns the
     /// algorithm that was used verified the data. Should be called only after
     /// all data has been read from disk.
+    ///
+    /// ## Example
+    /// ```no_run
+    /// # fn main() -> Result<(), cacache::Error> {
+    /// # use std::io::Read;
+    /// let mut handle = cacache::get::open_sync("./my-cache", "my-key")?;
+    /// let mut str = String::new();
+    /// handle.read_to_string(&mut str)?;
+    /// // Remember to check that the data you got was correct!
+    /// handle.check()?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn check(self) -> Result<Algorithm, Error> {
         self.reader.check()
     }
@@ -241,7 +318,7 @@ impl Get {
 /// # Ok(())
 /// # }
 /// ```
-pub fn open_sync<P, K>(cache: P, key: K) -> Result<Get, Error>
+pub fn open_sync<P, K>(cache: P, key: K) -> Result<SyncGet, Error>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
@@ -268,11 +345,11 @@ where
 /// # Ok(())
 /// # }
 /// ```
-pub fn open_hash_sync<P>(cache: P, sri: Integrity) -> Result<Get, Error>
+pub fn open_hash_sync<P>(cache: P, sri: Integrity) -> Result<SyncGet, Error>
 where
     P: AsRef<Path>,
 {
-    Ok(Get {
+    Ok(SyncGet {
         reader: read::open(cache.as_ref(), sri)?,
     })
 }
@@ -320,6 +397,15 @@ where
 }
 
 /// Copies a cache entry by key to a specified location.
+///
+/// ## Example
+/// ```no_run
+/// # fn main() -> Result<(), cacache::Error> {
+/// # use std::io::Read;
+/// cacache::get::copy_sync("./my-cache", "my-key", "./my-hello.txt")?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn copy_sync<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64, Error>
 where
     P: AsRef<Path>,
@@ -334,6 +420,16 @@ where
 }
 
 /// Copies a cache entry by integrity address to a specified location.
+///
+/// ## Example
+/// ```no_run
+/// # fn main() -> Result<(), cacache::Error> {
+/// # use std::io::Read;
+/// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+/// cacache::get::copy_hash_sync("./my-cache", &sri, "./my-hello.txt")?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn copy_hash_sync<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64, Error>
 where
     P: AsRef<Path>,
@@ -359,7 +455,8 @@ pub fn hash_exists_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> bool {
 #[cfg(test)]
 mod tests {
     use async_std::prelude::*;
-    use async_std::task;
+    use async_std::{fs as afs, task};
+    use std::fs;
     use tempfile;
 
     #[test]
@@ -469,6 +566,62 @@ mod tests {
         let sri = crate::put::data_sync(&dir, "my-key", b"hello world").unwrap();
 
         let data = crate::get::data_hash_sync(&dir, &sri).unwrap();
+        assert_eq!(data, b"hello world");
+    }
+
+    #[test]
+    fn test_copy() {
+        task::block_on(async {
+            let tmp = tempfile::tempdir().unwrap();
+            let dir = tmp.path();
+            let dest = dir.join("data");
+            crate::put::data(&dir, "my-key", b"hello world")
+                .await
+                .unwrap();
+
+            crate::get::copy(&dir, "my-key", &dest).await.unwrap();
+            let data = afs::read(&dest).await.unwrap();
+            assert_eq!(data, b"hello world");
+        });
+    }
+
+    #[test]
+    fn test_copy_hash() {
+        task::block_on(async {
+            let tmp = tempfile::tempdir().unwrap();
+            let dir = tmp.path();
+            let dest = dir.join("data");
+            let sri = crate::put::data(&dir, "my-key", b"hello world")
+                .await
+                .unwrap();
+
+            crate::get::copy_hash(&dir, &sri, &dest).await.unwrap();
+            let data = afs::read(&dest).await.unwrap();
+            assert_eq!(data, b"hello world");
+        });
+    }
+
+    #[test]
+    fn test_copy_sync() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+        let dest = dir.join("data");
+        crate::put::data_sync(&dir, "my-key", b"hello world").unwrap();
+
+        crate::get::copy_sync(&dir, "my-key", &dest).unwrap();
+        let data = fs::read(&dest).unwrap();
+        assert_eq!(data, b"hello world");
+    }
+
+    #[test]
+    fn test_copy_hash_sync() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+        let dest = dir.join("data");
+        let sri = crate::put::data_sync(&dir, "my-key", b"hello world").unwrap();
+
+        crate::get::copy_hash_sync(&dir, &sri, &dest).unwrap();
+        let data = fs::read(&dest).unwrap();
         assert_eq!(data, b"hello world");
     }
 }
