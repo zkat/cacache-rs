@@ -6,6 +6,8 @@ use cacache;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tempfile;
 
+const NUM_REPEATS: usize = 10;
+
 fn baseline_read_sync(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("test_file");
@@ -15,6 +17,27 @@ fn baseline_read_sync(c: &mut Criterion) {
     drop(fd);
     c.bench_function("baseline_read_sync", move |b| {
         b.iter(|| fs::read(&path).unwrap())
+    });
+}
+
+fn baseline_read_many_sync(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let paths: Vec<_> = (0..)
+        .take(NUM_REPEATS)
+        .map(|i| tmp.path().join(format!("test_file_{}", i)))
+        .collect();
+    let data = b"hello world";
+    for path in paths.iter() {
+        let mut fd = File::create(&path).unwrap();
+        fd.write_all(data).unwrap();
+        drop(fd);
+    }
+    c.bench_function("baseline_read_many_sync", move |b| {
+        b.iter(|| {
+            for path in paths.iter() {
+                fs::read(black_box(&path)).unwrap();
+            }
+        })
     });
 }
 
@@ -30,6 +53,26 @@ fn baseline_read_async(c: &mut Criterion) {
     });
 }
 
+fn baseline_read_many_async(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let paths: Vec<_> = (0..)
+        .take(NUM_REPEATS)
+        .map(|i| tmp.path().join(format!("test_file_{}", i)))
+        .collect();
+    let data = b"hello world";
+    for path in paths.iter() {
+        let mut fd = File::create(&path).unwrap();
+        fd.write_all(data).unwrap();
+        drop(fd);
+    }
+    c.bench_function("baseline_read_many_async", move |b| {
+        b.iter(|| {
+            let tasks = paths.iter().map(|path| afs::read(black_box(path)));
+            task::block_on(futures::future::join_all(tasks));
+        })
+    });
+}
+
 fn get_data_hash_sync(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
@@ -37,6 +80,26 @@ fn get_data_hash_sync(c: &mut Criterion) {
     let sri = cacache::put::data_sync(&cache, "hello", data).unwrap();
     c.bench_function("get::data_hash_sync", move |b| {
         b.iter(|| cacache::get::data_hash_sync(black_box(&cache), black_box(&sri)).unwrap())
+    });
+}
+
+fn get_data_hash_many_sync(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    let data: Vec<_> = (0..)
+        .take(NUM_REPEATS)
+        .map(|i| format!("test_file_{}", i))
+        .collect();
+    let sris: Vec<_> = data
+        .iter()
+        .map(|datum| cacache::put::data_sync(&cache, "hello", datum).unwrap())
+        .collect();
+    c.bench_function("get::data_hash_many_sync", move |b| {
+        b.iter(|| {
+            for sri in sris.iter() {
+                cacache::get::data_hash_sync(black_box(&cache), black_box(&sri)).unwrap();
+            }
+        })
     });
 }
 
@@ -60,6 +123,27 @@ fn get_data_hash_sync_big_data(c: &mut Criterion) {
     let sri = cacache::put::data_sync(&cache, "hello", data).unwrap();
     c.bench_function("get_hash_big_data", move |b| {
         b.iter(|| cacache::get::data_hash_sync(black_box(&cache), black_box(&sri)).unwrap())
+    });
+}
+
+fn get_data_hash_many_async(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    let data: Vec<_> = (0..)
+        .take(NUM_REPEATS)
+        .map(|i| format!("test_file_{}", i))
+        .collect();
+    let sris: Vec<_> = data
+        .iter()
+        .map(|datum| cacache::put::data_sync(&cache, "hello", datum).unwrap())
+        .collect();
+    c.bench_function("get::data_hash_many", move |b| {
+        b.iter(|| {
+            let tasks = sris
+                .iter()
+                .map(|sri| cacache::get::data_hash(black_box(&cache), black_box(&sri)));
+            task::block_on(futures::future::join_all(tasks));
+        })
     });
 }
 
@@ -102,9 +186,13 @@ fn get_data_hash_async_big_data(c: &mut Criterion) {
 criterion_group!(
     benches,
     baseline_read_sync,
+    baseline_read_many_sync,
     baseline_read_async,
+    baseline_read_many_async,
     get_data_hash_async,
+    get_data_hash_many_async,
     get_data_hash_sync,
+    get_data_hash_many_sync,
     get_data_async,
     get_data_sync,
     get_data_hash_async_big_data,
