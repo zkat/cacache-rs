@@ -18,7 +18,7 @@ pub struct Reader {
 impl std::io::Read for Reader {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let amt = self.fd.read(buf)?;
-        self.checker.input(&buf);
+        self.checker.input(&buf[..amt]);
         Ok(amt)
     }
 }
@@ -41,7 +41,7 @@ impl AsyncRead for AsyncReader {
         buf: &mut [u8],
     ) -> Poll<std::io::Result<usize>> {
         let amt = futures::ready!(Pin::new(&mut self.fd).poll_read(cx, buf))?;
-        self.checker.input(&buf);
+        self.checker.input(&buf[..amt]);
         Poll::Ready(Ok(amt))
     }
 }

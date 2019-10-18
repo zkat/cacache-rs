@@ -56,6 +56,8 @@ impl AsyncGet {
 /// let mut handle = cacache::get::open("./my-cache", "my-key").await?;
 /// let mut str = String::new();
 /// handle.read_to_string(&mut str).await?;
+/// // Remember to check that the data you got was correct!
+/// handle.check()?;
 /// # Ok(())
 /// # }
 /// ```
@@ -89,6 +91,8 @@ where
 /// let mut handle = cacache::get::open_hash("./my-cache", sri).await?;
 /// let mut str = String::new();
 /// handle.read_to_string(&mut str).await?;
+/// // Remember to check that the data you got was correct!
+/// handle.check()?;
 /// # Ok(())
 /// # }
 /// ```
@@ -197,6 +201,8 @@ impl Get {
 /// let mut handle = cacache::get::open_sync("./my-cache", "my-key")?;
 /// let mut str = String::new();
 /// handle.read_to_string(&mut str)?;
+/// // Remember to check that the data you got was correct!
+/// handle.check()?;
 /// # Ok(())
 /// # }
 /// ```
@@ -222,6 +228,8 @@ where
 /// let mut handle = cacache::get::open_hash_sync("./my-cache", sri)?;
 /// let mut str = String::new();
 /// handle.read_to_string(&mut str)?;
+/// // Remember to check that the data you got was correct!
+/// handle.check()?;
 /// # Ok(())
 /// # }
 /// ```
@@ -312,6 +320,7 @@ mod tests {
             let mut handle = crate::get::open(&dir, "my-key").await.unwrap();
             let mut str = String::new();
             handle.read_to_string(&mut str).await.unwrap();
+            handle.check().unwrap();
             assert_eq!(str, String::from("hello world"));
         })
     }
@@ -328,6 +337,7 @@ mod tests {
             let mut handle = crate::get::open_hash(&dir, sri).await.unwrap();
             let mut str = String::new();
             handle.read_to_string(&mut str).await.unwrap();
+            handle.check().unwrap();
             assert_eq!(str, String::from("hello world"));
         })
     }
@@ -342,6 +352,7 @@ mod tests {
         let mut handle = crate::get::open_sync(&dir, "my-key").unwrap();
         let mut str = String::new();
         handle.read_to_string(&mut str).unwrap();
+        handle.check().unwrap();
         assert_eq!(str, String::from("hello world"));
     }
 
@@ -355,6 +366,7 @@ mod tests {
         let mut handle = crate::get::open_hash_sync(&dir, sri).unwrap();
         let mut str = String::new();
         handle.read_to_string(&mut str).unwrap();
+        handle.check().unwrap();
         assert_eq!(str, String::from("hello world"));
     }
 }
