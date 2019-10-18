@@ -107,6 +107,23 @@ where
 
 /// Reads the entire contents of a cache file into a bytes vector, looking the
 /// data up by key.
+///
+/// ## Example
+/// ```no_run
+/// # use async_std::prelude::*;
+/// # use async_std::task;
+/// # fn main() -> Result<(), cacache::Error> {
+/// # task::block_on(async {
+/// #   example().await.unwrap();
+/// # });
+/// # Ok(())
+/// # }
+/// #
+/// # async fn example() -> Result<(), cacache::Error> {
+/// let data = cacache::get::data("./my-cache", "my-key").await?;
+/// # Ok(())
+/// # }
+/// ```
 pub async fn data<P, K>(cache: P, key: K) -> Result<Vec<u8>, Error>
 where
     P: AsRef<Path>,
@@ -121,6 +138,24 @@ where
 
 /// Reads the entire contents of a cache file into a bytes vector, looking the
 /// data up by its content address.
+///
+/// ## Example
+/// ```no_run
+/// # use async_std::prelude::*;
+/// # use async_std::task;
+/// # fn main() -> Result<(), cacache::Error> {
+/// # task::block_on(async {
+/// #   example().await.unwrap();
+/// # });
+/// # Ok(())
+/// # }
+/// #
+/// # async fn example() -> Result<(), cacache::Error> {
+/// let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
+/// let data = cacache::get::data_hash("./my-cache", &sri).await?;
+/// # Ok(())
+/// # }
+/// ```
 pub async fn data_hash<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>, Error>
 where
     P: AsRef<Path>,
@@ -242,8 +277,17 @@ where
     })
 }
 
-/// Reads the entire contents of a cache file into a bytes vector, looking the
-/// data up by key.
+/// Reads the entire contents of a cache file synchronously into a bytes
+/// vector, looking the data up by key.
+///
+/// ## Example
+/// ```no_run
+/// # fn main() -> Result<(), cacache::Error> {
+/// # use std::io::Read;
+/// let data = cacache::get::data_sync("./my-cache", "my-key")?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn data_sync<P, K>(cache: P, key: K) -> Result<Vec<u8>, Error>
 where
     P: AsRef<Path>,
@@ -256,8 +300,18 @@ where
     }
 }
 
-/// Reads the entire contents of a cache file into a bytes vector, looking the
-/// data up by its content address.
+/// Reads the entire contents of a cache file synchronously into a bytes
+/// vector, looking the data up by its content address.
+///
+/// ## Example
+/// ```no_run
+/// # fn main() -> Result<(), cacache::Error> {
+/// # use std::io::Read;
+/// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+/// let data = cacache::get::data_hash_sync("./my-cache", &sri)?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn data_hash_sync<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>, Error>
 where
     P: AsRef<Path>,
@@ -322,7 +376,7 @@ mod tests {
             handle.read_to_string(&mut str).await.unwrap();
             handle.check().unwrap();
             assert_eq!(str, String::from("hello world"));
-        })
+        });
     }
 
     #[test]
@@ -339,7 +393,7 @@ mod tests {
             handle.read_to_string(&mut str).await.unwrap();
             handle.check().unwrap();
             assert_eq!(str, String::from("hello world"));
-        })
+        });
     }
 
     #[test]
@@ -368,5 +422,53 @@ mod tests {
         handle.read_to_string(&mut str).unwrap();
         handle.check().unwrap();
         assert_eq!(str, String::from("hello world"));
+    }
+
+    #[test]
+    fn test_data() {
+        task::block_on(async {
+            let tmp = tempfile::tempdir().unwrap();
+            let dir = tmp.path().to_owned();
+            crate::put::data(&dir, "my-key", b"hello world")
+                .await
+                .unwrap();
+
+            let data = crate::get::data(&dir, "my-key").await.unwrap();
+            assert_eq!(data, b"hello world");
+        });
+    }
+
+    #[test]
+    fn test_data_hash() {
+        task::block_on(async {
+            let tmp = tempfile::tempdir().unwrap();
+            let dir = tmp.path().to_owned();
+            let sri = crate::put::data(&dir, "my-key", b"hello world")
+                .await
+                .unwrap();
+
+            let data = crate::get::data_hash(&dir, &sri).await.unwrap();
+            assert_eq!(data, b"hello world");
+        });
+    }
+
+    #[test]
+    fn test_data_sync() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        crate::put::data_sync(&dir, "my-key", b"hello world").unwrap();
+
+        let data = crate::get::data_sync(&dir, "my-key").unwrap();
+        assert_eq!(data, b"hello world");
+    }
+
+    #[test]
+    fn test_data_hash_sync() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::put::data_sync(&dir, "my-key", b"hello world").unwrap();
+
+        let data = crate::get::data_hash_sync(&dir, &sri).unwrap();
+        assert_eq!(data, b"hello world");
     }
 }
