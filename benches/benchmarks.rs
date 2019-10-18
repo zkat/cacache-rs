@@ -1,7 +1,34 @@
-use async_std::task;
+use async_std::{fs as afs, task};
+use std::fs::{self, File};
+use std::io::prelude::*;
+
 use cacache;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tempfile;
+
+fn baseline_read_sync(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("test_file");
+    let data = b"hello world";
+    let mut fd = File::create(&path).unwrap();
+    fd.write_all(data).unwrap();
+    drop(fd);
+    c.bench_function("baseline_read_sync", move |b| {
+        b.iter(|| fs::read(&path).unwrap())
+    });
+}
+
+fn baseline_read_async(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("test_file");
+    let data = b"hello world";
+    let mut fd = File::create(&path).unwrap();
+    fd.write_all(data).unwrap();
+    drop(fd);
+    c.bench_function("baseline_read_async", move |b| {
+        b.iter(|| task::block_on(afs::read(&path)))
+    });
+}
 
 fn get_data_hash_sync(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
@@ -74,6 +101,8 @@ fn get_data_hash_async_big_data(c: &mut Criterion) {
 
 criterion_group!(
     benches,
+    baseline_read_sync,
+    baseline_read_async,
     get_data_hash_async,
     get_data_hash_sync,
     get_data_async,
