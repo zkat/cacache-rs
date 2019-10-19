@@ -17,6 +17,23 @@ use crate::index;
 use std::task::{Context, Poll};
 
 /// Writes `data` to the `cache`, indexing it under `key`.
+///
+/// ## Example
+/// ```no_run
+/// # use async_std::prelude::*;
+/// # use async_std::task;
+/// # fn main() -> Result<(), cacache::Error> {
+/// # task::block_on(async {
+/// #   example().await.unwrap();
+/// # });
+/// # Ok(())
+/// # }
+/// #
+/// # async fn example() -> Result<(), cacache::Error> {
+/// cacache::put::data("./my-cache", "my-key", b"hello").await?;
+/// # Ok(())
+/// # }
+/// ```
 pub async fn data<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity, Error>
 where
     P: AsRef<Path>,
@@ -89,6 +106,15 @@ impl AsyncPut {
 }
 
 /// Writes `data` to the `cache` synchronously, indexing it under `key`.
+///
+/// ## Example
+/// ```no_run
+/// # fn main() -> Result<(), cacache::Error> {
+/// # use std::io::Read;
+/// let data = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn data_sync<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity, Error>
 where
     P: AsRef<Path>,
@@ -123,7 +149,7 @@ impl PutOpts {
         Default::default()
     }
 
-    /// Opens the file handle for writing, returning a Put instance.
+    /// Opens the file handle for writing, returning an AsyncPut instance.
     pub async fn open<P, K>(self, cache: P, key: K) -> Result<AsyncPut, Error>
     where
         P: AsRef<Path>,
@@ -142,7 +168,7 @@ impl PutOpts {
         })
     }
 
-    /// Opens the file handle for writing synchronously, returning a Put instance.
+    /// Opens the file handle for writing synchronously, returning a SyncPut instance.
     pub fn open_sync<P, K>(self, cache: P, key: K) -> Result<SyncPut, Error>
     where
         P: AsRef<Path>,
