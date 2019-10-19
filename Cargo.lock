@@ -9,6 +9,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-attributes"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "async-macros"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -163,6 +172,7 @@ dependencies = [
 name = "cacache"
 version = "2.0.1"
 dependencies = [
+ "async-attributes 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-std 0.99.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "chownr 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "criterion 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1073,6 +1083,7 @@ dependencies = [
 
 [metadata]
 "checksum arrayvec 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)" = "cd9fd44efafa8690358b7408d253adf110036b88f55672a933f01d616ad9b1b9"
+"checksum async-attributes 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "5266d863e013ece9c8793b69fe6d3a70679f7adea32c92d0aa5eb6e2a55d4d06"
 "checksum async-macros 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e421d59b24c1feea2496e409b3e0a8de23e5fc130a2ddc0b012e551f3b272bba"
 "checksum async-std 0.99.9 (registry+https://github.com/rust-lang/crates.io-index)" = "e274b0689dffa49d9c128a7bd1a86707b6bc8ea319af0899caae654e221656f4"
 "checksum async-task 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de6bd58f7b9cc49032559422595c81cbfcf04db2f2133592f70af19e258a1ced"

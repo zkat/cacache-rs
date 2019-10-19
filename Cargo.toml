@@ -39,6 +39,7 @@ chownr = "2.0.0"
 nix = "0.14.0"
 
 [dev-dependencies]
+async-attributes = "1.0.0"
 criterion = "0.2.11"
 
 [[bench]]
