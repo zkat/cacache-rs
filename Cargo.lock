@@ -170,7 +170,7 @@ dependencies = [
 
 [[package]]
 name = "cacache"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "async-attributes 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-std 0.99.10 (registry+https://github.com/rust-lang/crates.io-index)",
