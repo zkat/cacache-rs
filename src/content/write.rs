@@ -91,7 +91,7 @@ impl AsyncWriter {
         Ok(AsyncWriter(Mutex::new(State::Idle(Some(Inner {
             cache: cache_path,
             builder: IntegrityOpts::new().algorithm(algo),
-            tmpfile: task::spawn_blocking(|| NamedTempFile::new_in(tmp_path) ).await?,
+            tmpfile: task::spawn_blocking(|| NamedTempFile::new_in(tmp_path)).await?,
             buf: vec![],
             last_op: None,
         })))))
