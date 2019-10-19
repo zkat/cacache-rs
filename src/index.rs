@@ -5,8 +5,7 @@ use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use async_std::fs as afs;
-use async_std::task::blocking;
+use async_std::{fs as afs, task};
 #[cfg(unix)]
 use chownr;
 use digest::Digest;
@@ -104,7 +103,7 @@ pub async fn insert_async<'a>(
     let tmpbucket = bucket.clone();
     #[cfg(unix)]
     let PutOpts { uid, gid, .. } = opts;
-    blocking(async move {
+    task::spawn_blocking(move || {
         let parent = tmpbucket.parent().unwrap();
         #[cfg(unix)]
         {

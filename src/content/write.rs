@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 use async_std::fs as afs;
 use async_std::future::Future;
-use async_std::task::{blocking, Context, JoinHandle, Poll};
+use async_std::task::{self, Context, JoinHandle, Poll};
 use futures::io::AsyncWrite;
 use futures::prelude::*;
 use ssri::{Algorithm, Integrity, IntegrityOpts};
@@ -91,7 +91,7 @@ impl AsyncWriter {
         Ok(AsyncWriter(Mutex::new(State::Idle(Some(Inner {
             cache: cache_path,
             builder: IntegrityOpts::new().algorithm(algo),
-            tmpfile: blocking(async move { NamedTempFile::new_in(tmp_path) }).await?,
+            tmpfile: task::spawn_blocking(|| NamedTempFile::new_in(tmp_path) ).await?,
             buf: vec![],
             last_op: None,
         })))))
@@ -115,7 +115,7 @@ impl AsyncWriter {
                             let cpath = path::content_path(&inner.cache, &sri);
 
                             // Start the operation asynchronously.
-                            *state = State::Busy(blocking(async move {
+                            *state = State::Busy(task::spawn(async move {
                                 let res = afs::DirBuilder::new()
                                     .recursive(true)
                                     // Safe unwrap. cpath always has multiple segments
@@ -186,7 +186,7 @@ impl AsyncWrite for AsyncWriter {
                         inner.buf[..buf.len()].copy_from_slice(buf);
 
                         // Start the operation asynchronously.
-                        *state = State::Busy(blocking(async move {
+                        *state = State::Busy(task::spawn_blocking(|| {
                             inner.builder.input(&inner.buf);
                             let res = inner.tmpfile.write(&inner.buf);
                             inner.last_op = Some(Operation::Write(res));
@@ -220,7 +220,7 @@ impl AsyncWrite for AsyncWriter {
                         let mut inner = opt.take().unwrap();
 
                         // Start the operation asynchronously.
-                        *state = State::Busy(blocking(async move {
+                        *state = State::Busy(task::spawn_blocking(|| {
                             let res = inner.tmpfile.flush();
                             inner.last_op = Some(Operation::Flush(res));
                             State::Idle(Some(inner))
@@ -247,7 +247,7 @@ impl AsyncWrite for AsyncWriter {
                     };
 
                     // Start the operation asynchronously.
-                    *state = State::Busy(blocking(async move {
+                    *state = State::Busy(task::spawn_blocking(|| {
                         drop(inner);
                         State::Idle(None)
                     }));
