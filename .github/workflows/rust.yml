@@ -8,19 +8,19 @@ jobs:
     strategy:
       matrix:
         rust: [beta, nightly]
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, macOS-latest, windows-latest]
 
     steps:
-      - uses: hecrj/setup-rust-action@master
-        with:
-          rust-version: ${{ matrix.rust }}
       - uses: actions/checkout@v1
-      - name: Add Clippy
-        run: rustup component add clippy
-      - name: Add Rustfmt
-        run: rustup component add rustfmt
-      - name: Build
-        run: cargo build --verbose
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+          override: true
+      - name: Check
+        run: cargo check
       - name: Rustfmt
         run: cargo fmt --all -- --check
       - name: Clippy
