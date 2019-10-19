@@ -1,3 +1,26 @@
+<a name="3.0.0"></a>
+
+## 3.0.0 (2019-10-19)
+
+#### Features
+
+- **api:** get::read -> get::data ([b02f41e0](https://github.com/zkat/cacache-rs/commit/b02f41e07fab0929006e8027395503ff001a6002))
+- **async:** reorganize async APIs to be the primary APIs ([662aea9b](https://github.com/zkat/cacache-rs/commit/662aea9b5a829ca4ca9673f2d82917065d675c62))
+- **get:** get::info -> get::entry ([dafc79f4](https://github.com/zkat/cacache-rs/commit/dafc79f481366f3254c13efaf101c79e018d7e19))
+- **ls:** cacache::ls::all -> ls::all_sync ([c4300167](https://github.com/zkat/cacache-rs/commit/c43001674441e68dd376cf003e17167360ab670e))
+
+#### Bug Fixes
+
+- **check:** {Async}Get::check wasn't working correctly ([d08629cf](https://github.com/zkat/cacache-rs/commit/d08629cf5547f6aad8147f319fee5d30accf89a2))
+- **open:** use actual file paths instead of just cache for open APIs ([03ff1970](https://github.com/zkat/cacache-rs/commit/03ff19709ab13ff4fc61ae8b52ace93db2c9dada))
+
+#### Breaking Changes
+
+- **api:** get::read -> get::data ([b02f41e0](https://github.com/zkat/cacache-rs/commit/b02f41e07fab0929006e8027395503ff001a6002), breaks [#](https://github.com/zkat/cacache-rs/issues/))
+- **async:** reorganize async APIs to be the primary APIs ([662aea9b](https://github.com/zkat/cacache-rs/commit/662aea9b5a829ca4ca9673f2d82917065d675c62), breaks [#](https://github.com/zkat/cacache-rs/issues/))
+- **get:** get::info -> get::entry ([dafc79f4](https://github.com/zkat/cacache-rs/commit/dafc79f481366f3254c13efaf101c79e018d7e19), breaks [#](https://github.com/zkat/cacache-rs/issues/))
+- **ls:** cacache::ls::all -> ls::all_sync ([c4300167](https://github.com/zkat/cacache-rs/commit/c43001674441e68dd376cf003e17167360ab670e), breaks [#](https://github.com/zkat/cacache-rs/issues/))
+
 <a name="2.0.1"></a>
 
 ## 2.0.1 (2019-10-15)
