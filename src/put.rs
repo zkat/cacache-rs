@@ -5,6 +5,7 @@ use std::pin::Pin;
 
 use futures::prelude::*;
 
+use anyhow::Result;
 #[cfg(unix)]
 use nix::unistd::{Gid, Uid};
 use serde_json::Value;
@@ -22,19 +23,20 @@ use std::task::{Context, Poll};
 /// ```no_run
 /// # use async_std::prelude::*;
 /// # use async_std::task;
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # task::block_on(async {
 /// #   example().await.unwrap();
 /// # });
 /// # Ok(())
 /// # }
 /// #
-/// # async fn example() -> Result<(), cacache::Error> {
+/// # async fn example() -> Result<()> {
 /// cacache::put::data("./my-cache", "my-key", b"hello").await?;
 /// # Ok(())
 /// # }
 /// ```
-pub async fn data<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity, Error>
+pub async fn data<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity>
 where
     P: AsRef<Path>,
     D: AsRef<[u8]>,
@@ -80,7 +82,7 @@ impl AsyncPut {
     /// verifies data against `size` and `integrity` options, if provided.
     /// Must be called manually in order to complete the writing process,
     /// otherwise everything will be thrown out.
-    pub async fn commit(mut self) -> Result<Integrity, Error> {
+    pub async fn commit(mut self) -> Result<Integrity> {
         let writer_sri = self.writer.close().await?;
         if let Some(sri) = &self.opts.sri {
             // TODO - ssri should have a .matches method
@@ -91,14 +93,14 @@ impl AsyncPut {
                 .take_while(|h| h.algorithm == algo)
                 .find(|&h| *h == writer_sri.hashes[0]);
             if matched.is_none() {
-                return Err(Error::IntegrityError);
+                return Err(Error::IntegrityError)?;
             }
         } else {
             self.opts.sri = Some(writer_sri);
         }
         if let Some(size) = self.opts.size {
             if size != self.written {
-                return Err(Error::SizeError);
+                return Err(Error::SizeError)?;
             }
         }
         index::insert_async(&self.cache, &self.key, self.opts).await
@@ -109,13 +111,14 @@ impl AsyncPut {
 ///
 /// ## Example
 /// ```no_run
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # use std::io::Read;
 /// let data = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
 /// # Ok(())
 /// # }
 /// ```
-pub fn data_sync<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity, Error>
+pub fn data_sync<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity>
 where
     P: AsRef<Path>,
     D: AsRef<[u8]>,
@@ -150,7 +153,7 @@ impl PutOpts {
     }
 
     /// Opens the file handle for writing, returning an AsyncPut instance.
-    pub async fn open<P, K>(self, cache: P, key: K) -> Result<AsyncPut, Error>
+    pub async fn open<P, K>(self, cache: P, key: K) -> Result<AsyncPut>
     where
         P: AsRef<Path>,
         K: AsRef<str>,
@@ -169,7 +172,7 @@ impl PutOpts {
     }
 
     /// Opens the file handle for writing synchronously, returning a SyncPut instance.
-    pub fn open_sync<P, K>(self, cache: P, key: K) -> Result<SyncPut, Error>
+    pub fn open_sync<P, K>(self, cache: P, key: K) -> Result<SyncPut>
     where
         P: AsRef<Path>,
         K: AsRef<str>,
@@ -254,7 +257,7 @@ impl SyncPut {
     /// verifies data against `size` and `integrity` options, if provided.
     /// Must be called manually in order to complete the writing process,
     /// otherwise everything will be thrown out.
-    pub fn commit(mut self) -> Result<Integrity, Error> {
+    pub fn commit(mut self) -> Result<Integrity> {
         let writer_sri = self.writer.close()?;
         if let Some(sri) = &self.opts.sri {
             // TODO - ssri should have a .matches method
@@ -265,17 +268,17 @@ impl SyncPut {
                 .take_while(|h| h.algorithm == algo)
                 .find(|&h| *h == writer_sri.hashes[0]);
             if matched.is_none() {
-                return Err(Error::IntegrityError);
+                return Err(Error::IntegrityError)?;
             }
         } else {
             self.opts.sri = Some(writer_sri);
         }
         if let Some(size) = self.opts.size {
             if size != self.written {
-                return Err(Error::SizeError);
+                return Err(Error::SizeError)?;
             }
         }
-        index::insert(&self.cache, &self.key, self.opts)
+        Ok(index::insert(&self.cache, &self.key, self.opts)?)
     }
 }
 

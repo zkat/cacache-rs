@@ -10,9 +10,10 @@
 //!
 //! ```no_run
 //! use async_attributes;
+//! use anyhow::Result;
 //!
 //! #[async_attributes::main]
-//! async fn main() -> Result<(), cacache::Error> {
+//! async fn main() -> Result<()> {
 //!   // Data goes in...
 //!   cacache::put::data("./my-cache", "key", b"hello").await?;
 //!
@@ -34,9 +35,10 @@
 //!
 //! ```no_run
 //! use async_attributes;
+//! use anyhow::Result;
 //!
 //! #[async_attributes::main]
-//! async fn main() -> Result<(), cacache::Error> {
+//! async fn main() -> Result<()> {
 //!   // Data goes in...
 //!   let sri = cacache::put::data("./my-cache", "key", b"hello").await?;
 //!
@@ -54,11 +56,12 @@
 //! an API reminiscent of `std::fs::OpenOptions`:
 //!
 //! ```no_run
+//! use anyhow::Result;
 //! use async_attributes;
 //! use async_std::prelude::*;
 //!
 //! #[async_attributes::main]
-//! async fn main() -> Result<(), cacache::Error> {
+//! async fn main() -> Result<()> {
 //!   let mut fd = cacache::put::PutOpts::new().open("./my-cache", "key").await?;
 //!   for _ in 0..10 {
 //!     fd.write_all(b"very large data").await?;
@@ -85,7 +88,8 @@
 //! There are also sync APIs available if you don't want to use async/await:
 //!
 //! ```no_run
-//! fn main() -> Result<(), cacache::Error> {
+//! use anyhow::Result;
+//! fn main() -> Result<()> {
 //!   cacache::put::data_sync("./my-cache", "key", b"my-data").unwrap();
 //!   let data = cacache::get::data_sync("./my-cache", "key").unwrap();
 //!   assert_eq!(data, b"my-data");

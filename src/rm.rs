@@ -4,10 +4,10 @@ use std::path::Path;
 
 use async_std::fs as afs;
 
+use anyhow::Result;
 use ssri::Integrity;
 
 use crate::content::rm;
-use crate::errors::Error;
 use crate::index;
 
 /// Removes an individual index entry. The associated content will be left
@@ -17,14 +17,15 @@ use crate::index;
 /// ```no_run
 /// # use async_std::prelude::*;
 /// # use async_std::task;
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # task::block_on(async {
 /// #   example().await.unwrap();
 /// # });
 /// # Ok(())
 /// # }
 /// #
-/// # async fn example() -> Result<(), cacache::Error> {
+/// # async fn example() -> Result<()> {
 /// let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
 ///
 /// cacache::rm::entry("./my-cache", "my-key").await?;
@@ -37,8 +38,8 @@ use crate::index;
 /// # Ok(())
 /// # }
 /// ```
-pub async fn entry<P: AsRef<Path>>(cache: P, key: &str) -> Result<(), Error> {
-    index::delete_async(cache.as_ref(), &key).await
+pub async fn entry<P: AsRef<Path>>(cache: P, key: &str) -> Result<()> {
+    Ok(index::delete_async(cache.as_ref(), &key).await?)
 }
 
 /// Removes an individual content entry. Any index entries pointing to this
@@ -48,14 +49,15 @@ pub async fn entry<P: AsRef<Path>>(cache: P, key: &str) -> Result<(), Error> {
 /// ```no_run
 /// # use async_std::prelude::*;
 /// # use async_std::task;
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # task::block_on(async {
 /// #   example().await.unwrap();
 /// # });
 /// # Ok(())
 /// # }
 /// #
-/// # async fn example() -> Result<(), cacache::Error> {
+/// # async fn example() -> Result<()> {
 /// let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
 ///
 /// cacache::rm::entry("./my-cache", "my-key").await?;
@@ -69,7 +71,7 @@ pub async fn entry<P: AsRef<Path>>(cache: P, key: &str) -> Result<(), Error> {
 /// # Ok(())
 /// # }
 /// ```
-pub async fn content<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<(), Error> {
+pub async fn content<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
     rm::rm_async(cache.as_ref(), &sri).await
 }
 
@@ -80,14 +82,15 @@ pub async fn content<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<(), Er
 /// ```no_run
 /// # use async_std::prelude::*;
 /// # use async_std::task;
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # task::block_on(async {
 /// #   example().await.unwrap();
 /// # });
 /// # Ok(())
 /// # }
 /// #
-/// # async fn example() -> Result<(), cacache::Error> {
+/// # async fn example() -> Result<()> {
 /// let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
 ///
 /// cacache::rm::entry("./my-cache", "my-key").await?;
@@ -99,7 +102,7 @@ pub async fn content<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<(), Er
 /// # Ok(())
 /// # }
 /// ```
-pub async fn all<P: AsRef<Path>>(cache: P) -> Result<(), Error> {
+pub async fn all<P: AsRef<Path>>(cache: P) -> Result<()> {
     for entry in cache.as_ref().read_dir()? {
         if let Ok(entry) = entry {
             afs::remove_dir_all(entry.path()).await?;
@@ -113,7 +116,8 @@ pub async fn all<P: AsRef<Path>>(cache: P) -> Result<(), Error> {
 ///
 /// ## Example
 /// ```no_run
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # use std::io::Read;
 /// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
 ///
@@ -127,8 +131,8 @@ pub async fn all<P: AsRef<Path>>(cache: P) -> Result<(), Error> {
 /// # Ok(())
 /// # }
 /// ```
-pub fn entry_sync<P: AsRef<Path>>(cache: P, key: &str) -> Result<(), Error> {
-    index::delete(cache.as_ref(), &key)
+pub fn entry_sync<P: AsRef<Path>>(cache: P, key: &str) -> Result<()> {
+    Ok(index::delete(cache.as_ref(), &key)?)
 }
 
 /// Removes an individual content entry synchronously. Any index entries
@@ -136,7 +140,8 @@ pub fn entry_sync<P: AsRef<Path>>(cache: P, key: &str) -> Result<(), Error> {
 ///
 /// ## Example
 /// ```no_run
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # use std::io::Read;
 /// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
 ///
@@ -151,7 +156,7 @@ pub fn entry_sync<P: AsRef<Path>>(cache: P, key: &str) -> Result<(), Error> {
 /// # Ok(())
 /// # }
 /// ```
-pub fn content_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<(), Error> {
+pub fn content_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
     rm::rm(cache.as_ref(), &sri)
 }
 
@@ -160,7 +165,8 @@ pub fn content_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<(), Err
 ///
 /// ## Example
 /// ```no_run
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # use std::io::Read;
 /// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
 ///
@@ -173,7 +179,7 @@ pub fn content_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<(), Err
 /// # Ok(())
 /// # }
 /// ```
-pub fn all_sync<P: AsRef<Path>>(cache: P) -> Result<(), Error> {
+pub fn all_sync<P: AsRef<Path>>(cache: P) -> Result<()> {
     for entry in cache.as_ref().read_dir()? {
         if let Ok(entry) = entry {
             fs::remove_dir_all(entry.path())?;
