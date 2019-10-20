@@ -3,6 +3,7 @@ use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use anyhow::Result;
 use async_std;
 use futures::prelude::*;
 use ssri::{Algorithm, Integrity, IntegrityChecker};
@@ -24,8 +25,10 @@ impl std::io::Read for Reader {
 }
 
 impl Reader {
-    pub fn check(self) -> Result<Algorithm, Error> {
-        self.checker.result().ok_or(Error::IntegrityError)
+    pub fn check(self) -> Result<Algorithm> {
+        self.checker
+            .result()
+            .ok_or(anyhow::Error::new(Error::IntegrityError))
     }
 }
 
@@ -47,12 +50,14 @@ impl AsyncRead for AsyncReader {
 }
 
 impl AsyncReader {
-    pub fn check(self) -> Result<Algorithm, Error> {
-        self.checker.result().ok_or(Error::IntegrityError)
+    pub fn check(self) -> Result<Algorithm> {
+        self.checker
+            .result()
+            .ok_or(anyhow::Error::new(Error::IntegrityError))
     }
 }
 
-pub fn open(cache: &Path, sri: Integrity) -> Result<Reader, Error> {
+pub fn open(cache: &Path, sri: Integrity) -> Result<Reader> {
     let cpath = path::content_path(&cache, &sri);
     Ok(Reader {
         fd: File::open(cpath)?,
@@ -60,7 +65,7 @@ pub fn open(cache: &Path, sri: Integrity) -> Result<Reader, Error> {
     })
 }
 
-pub async fn open_async(cache: &Path, sri: Integrity) -> Result<AsyncReader, Error> {
+pub async fn open_async(cache: &Path, sri: Integrity) -> Result<AsyncReader> {
     let cpath = path::content_path(&cache, &sri);
     Ok(AsyncReader {
         fd: async_std::fs::File::open(cpath).await?,
@@ -68,49 +73,45 @@ pub async fn open_async(cache: &Path, sri: Integrity) -> Result<AsyncReader, Err
     })
 }
 
-pub fn read(cache: &Path, sri: &Integrity) -> Result<Vec<u8>, Error> {
+pub fn read(cache: &Path, sri: &Integrity) -> Result<Vec<u8>> {
     let cpath = path::content_path(&cache, &sri);
     let ret = fs::read(&cpath)?;
     if sri.check(&ret).is_some() {
         Ok(ret)
     } else {
-        Err(Error::IntegrityError)
+        Err(Error::IntegrityError)?
     }
 }
 
-pub async fn read_async<'a>(cache: &'a Path, sri: &'a Integrity) -> Result<Vec<u8>, Error> {
+pub async fn read_async<'a>(cache: &'a Path, sri: &'a Integrity) -> Result<Vec<u8>> {
     let cpath = path::content_path(&cache, &sri);
     let ret = async_std::fs::read(&cpath).await?;
     if sri.check(&ret).is_some() {
         Ok(ret)
     } else {
-        Err(Error::IntegrityError)
+        Err(Error::IntegrityError)?
     }
 }
 
-pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64, Error> {
+pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64> {
     let cpath = path::content_path(&cache, &sri);
     let ret = fs::copy(&cpath, to)?;
     let data = fs::read(cpath)?;
     if sri.check(data).is_some() {
         Ok(ret)
     } else {
-        Err(Error::IntegrityError)
+        Err(Error::IntegrityError)?
     }
 }
 
-pub async fn copy_async<'a>(
-    cache: &'a Path,
-    sri: &'a Integrity,
-    to: &'a Path,
-) -> Result<u64, Error> {
+pub async fn copy_async<'a>(cache: &'a Path, sri: &'a Integrity, to: &'a Path) -> Result<u64> {
     let cpath = path::content_path(&cache, &sri);
     let ret = async_std::fs::copy(&cpath, to).await?;
     let data = async_std::fs::read(cpath).await?;
     if sri.check(data).is_some() {
         Ok(ret)
     } else {
-        Err(Error::IntegrityError)
+        Err(Error::IntegrityError)?
     }
 }
 

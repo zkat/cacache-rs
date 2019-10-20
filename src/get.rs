@@ -5,6 +5,7 @@ use std::task::{Context, Poll};
 
 use futures::prelude::*;
 
+use anyhow::Result;
 use ssri::{Algorithm, Integrity};
 
 use crate::content::read::{self, AsyncReader, Reader};
@@ -42,14 +43,15 @@ impl AsyncGet {
     /// ```no_run
     /// # use async_std::prelude::*;
     /// # use async_std::task;
-    /// # fn main() -> Result<(), cacache::Error> {
+    /// # use anyhow::Result;
+    /// # fn main() -> Result<()> {
     /// # task::block_on(async {
     /// #   example().await.unwrap();
     /// # });
     /// # Ok(())
     /// # }
     /// #
-    /// # async fn example() -> Result<(), cacache::Error> {
+    /// # async fn example() -> Result<()> {
     /// let mut handle = cacache::get::open("./my-cache", "my-key").await?;
     /// let mut str = String::new();
     /// handle.read_to_string(&mut str).await?;
@@ -58,7 +60,7 @@ impl AsyncGet {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn check(self) -> Result<Algorithm, Error> {
+    pub fn check(self) -> Result<Algorithm> {
         self.reader.check()
     }
 }
@@ -70,14 +72,15 @@ impl AsyncGet {
 /// ```no_run
 /// # use async_std::prelude::*;
 /// # use async_std::task;
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # task::block_on(async {
 /// #   example().await.unwrap();
 /// # });
 /// # Ok(())
 /// # }
 /// #
-/// # async fn example() -> Result<(), cacache::Error> {
+/// # async fn example() -> Result<()> {
 /// let mut handle = cacache::get::open("./my-cache", "my-key").await?;
 /// let mut str = String::new();
 /// handle.read_to_string(&mut str).await?;
@@ -86,7 +89,7 @@ impl AsyncGet {
 /// # Ok(())
 /// # }
 /// ```
-pub async fn open<P, K>(cache: P, key: K) -> Result<AsyncGet, Error>
+pub async fn open<P, K>(cache: P, key: K) -> Result<AsyncGet>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
@@ -94,7 +97,7 @@ where
     if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
         open_hash(cache, entry.integrity).await
     } else {
-        Err(Error::NotFound)
+        Err(Error::NotFound)?
     }
 }
 
@@ -104,14 +107,15 @@ where
 /// ```no_run
 /// # use async_std::prelude::*;
 /// # use async_std::task;
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # task::block_on(async {
 /// #   example().await.unwrap();
 /// # });
 /// # Ok(())
 /// # }
 /// #
-/// # async fn example() -> Result<(), cacache::Error> {
+/// # async fn example() -> Result<()> {
 /// let sri = cacache::put::data("./my-cache", "key", b"hello world").await?;
 /// let mut handle = cacache::get::open_hash("./my-cache", sri).await?;
 /// let mut str = String::new();
@@ -121,7 +125,7 @@ where
 /// # Ok(())
 /// # }
 /// ```
-pub async fn open_hash<P>(cache: P, sri: Integrity) -> Result<AsyncGet, Error>
+pub async fn open_hash<P>(cache: P, sri: Integrity) -> Result<AsyncGet>
 where
     P: AsRef<Path>,
 {
@@ -137,19 +141,20 @@ where
 /// ```no_run
 /// # use async_std::prelude::*;
 /// # use async_std::task;
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # task::block_on(async {
 /// #   example().await.unwrap();
 /// # });
 /// # Ok(())
 /// # }
 /// #
-/// # async fn example() -> Result<(), cacache::Error> {
+/// # async fn example() -> Result<()> {
 /// let data = cacache::get::data("./my-cache", "my-key").await?;
 /// # Ok(())
 /// # }
 /// ```
-pub async fn data<P, K>(cache: P, key: K) -> Result<Vec<u8>, Error>
+pub async fn data<P, K>(cache: P, key: K) -> Result<Vec<u8>>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
@@ -157,7 +162,7 @@ where
     if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
         data_hash(cache, &entry.integrity).await
     } else {
-        Err(Error::NotFound)
+        Err(Error::NotFound)?
     }
 }
 
@@ -168,20 +173,21 @@ where
 /// ```no_run
 /// # use async_std::prelude::*;
 /// # use async_std::task;
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # task::block_on(async {
 /// #   example().await.unwrap();
 /// # });
 /// # Ok(())
 /// # }
 /// #
-/// # async fn example() -> Result<(), cacache::Error> {
+/// # async fn example() -> Result<()> {
 /// let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
 /// let data = cacache::get::data_hash("./my-cache", &sri).await?;
 /// # Ok(())
 /// # }
 /// ```
-pub async fn data_hash<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>, Error>
+pub async fn data_hash<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>>
 where
     P: AsRef<Path>,
 {
@@ -194,19 +200,20 @@ where
 /// ```no_run
 /// # use async_std::prelude::*;
 /// # use async_std::task;
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # task::block_on(async {
 /// #   example().await.unwrap();
 /// # });
 /// # Ok(())
 /// # }
 /// #
-/// # async fn example() -> Result<(), cacache::Error> {
+/// # async fn example() -> Result<()> {
 /// cacache::get::copy("./my-cache", "my-key", "./data.txt").await?;
 /// # Ok(())
 /// # }
 /// ```
-pub async fn copy<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64, Error>
+pub async fn copy<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
@@ -215,7 +222,7 @@ where
     if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
         copy_hash(cache, &entry.integrity, to).await
     } else {
-        Err(Error::NotFound)
+        Err(Error::NotFound)?
     }
 }
 
@@ -225,20 +232,21 @@ where
 /// ```no_run
 /// # use async_std::prelude::*;
 /// # use async_std::task;
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # task::block_on(async {
 /// #   example().await.unwrap();
 /// # });
 /// # Ok(())
 /// # }
 /// #
-/// # async fn example() -> Result<(), cacache::Error> {
+/// # async fn example() -> Result<()> {
 /// let sri = cacache::put::data("./my-cache", "my-key", b"hello world").await?;
 /// cacache::get::copy_hash("./my-cache", &sri, "./data.txt").await?;
 /// # Ok(())
 /// # }
 /// ```
-pub async fn copy_hash<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64, Error>
+pub async fn copy_hash<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64>
 where
     P: AsRef<Path>,
     Q: AsRef<Path>,
@@ -247,12 +255,12 @@ where
 }
 
 /// Gets entry information and metadata for a certain key.
-pub async fn entry<P, K>(cache: P, key: K) -> Result<Option<Entry>, Error>
+pub async fn entry<P, K>(cache: P, key: K) -> Result<Option<Entry>>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
 {
-    index::find_async(cache.as_ref(), key.as_ref()).await
+    Ok(index::find_async(cache.as_ref(), key.as_ref()).await?)
 }
 
 /// Returns true if the given hash exists in the cache.
@@ -288,7 +296,8 @@ impl SyncGet {
     ///
     /// ## Example
     /// ```no_run
-    /// # fn main() -> Result<(), cacache::Error> {
+    /// # use anyhow::Result;
+    /// # fn main() -> Result<()> {
     /// # use std::io::Read;
     /// let mut handle = cacache::get::open_sync("./my-cache", "my-key")?;
     /// let mut str = String::new();
@@ -298,7 +307,7 @@ impl SyncGet {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn check(self) -> Result<Algorithm, Error> {
+    pub fn check(self) -> Result<Algorithm> {
         self.reader.check()
     }
 }
@@ -308,7 +317,8 @@ impl SyncGet {
 ///
 /// ## Example
 /// ```no_run
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # use std::io::Read;
 /// let mut handle = cacache::get::open_sync("./my-cache", "my-key")?;
 /// let mut str = String::new();
@@ -318,7 +328,7 @@ impl SyncGet {
 /// # Ok(())
 /// # }
 /// ```
-pub fn open_sync<P, K>(cache: P, key: K) -> Result<SyncGet, Error>
+pub fn open_sync<P, K>(cache: P, key: K) -> Result<SyncGet>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
@@ -326,7 +336,7 @@ where
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
         open_hash_sync(cache, entry.integrity)
     } else {
-        Err(Error::NotFound)
+        Err(Error::NotFound)?
     }
 }
 
@@ -334,7 +344,8 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # use std::io::Read;
 /// let sri = cacache::put::data_sync("./my-cache", "key", b"hello world")?;
 /// let mut handle = cacache::get::open_hash_sync("./my-cache", sri)?;
@@ -345,7 +356,7 @@ where
 /// # Ok(())
 /// # }
 /// ```
-pub fn open_hash_sync<P>(cache: P, sri: Integrity) -> Result<SyncGet, Error>
+pub fn open_hash_sync<P>(cache: P, sri: Integrity) -> Result<SyncGet>
 where
     P: AsRef<Path>,
 {
@@ -359,13 +370,14 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # use std::io::Read;
 /// let data = cacache::get::data_sync("./my-cache", "my-key")?;
 /// # Ok(())
 /// # }
 /// ```
-pub fn data_sync<P, K>(cache: P, key: K) -> Result<Vec<u8>, Error>
+pub fn data_sync<P, K>(cache: P, key: K) -> Result<Vec<u8>>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
@@ -373,7 +385,7 @@ where
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
         data_hash_sync(cache, &entry.integrity)
     } else {
-        Err(Error::NotFound)
+        Err(Error::NotFound)?
     }
 }
 
@@ -382,14 +394,15 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # use std::io::Read;
 /// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
 /// let data = cacache::get::data_hash_sync("./my-cache", &sri)?;
 /// # Ok(())
 /// # }
 /// ```
-pub fn data_hash_sync<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>, Error>
+pub fn data_hash_sync<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>>
 where
     P: AsRef<Path>,
 {
@@ -400,13 +413,14 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # use std::io::Read;
 /// cacache::get::copy_sync("./my-cache", "my-key", "./my-hello.txt")?;
 /// # Ok(())
 /// # }
 /// ```
-pub fn copy_sync<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64, Error>
+pub fn copy_sync<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
@@ -415,7 +429,7 @@ where
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
         copy_hash_sync(cache, &entry.integrity, to)
     } else {
-        Err(Error::NotFound)
+        Err(Error::NotFound)?
     }
 }
 
@@ -423,14 +437,15 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # fn main() -> Result<(), cacache::Error> {
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
 /// # use std::io::Read;
 /// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
 /// cacache::get::copy_hash_sync("./my-cache", &sri, "./my-hello.txt")?;
 /// # Ok(())
 /// # }
 /// ```
-pub fn copy_hash_sync<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64, Error>
+pub fn copy_hash_sync<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64>
 where
     P: AsRef<Path>,
     Q: AsRef<Path>,
@@ -439,12 +454,12 @@ where
 }
 
 /// Gets entry information and metadata for a certain key.
-pub fn entry_sync<P, K>(cache: P, key: K) -> Result<Option<Entry>, Error>
+pub fn entry_sync<P, K>(cache: P, key: K) -> Result<Option<Entry>>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
 {
-    index::find(cache.as_ref(), key.as_ref())
+    Ok(index::find(cache.as_ref(), key.as_ref())?)
 }
 
 /// Returns true if the given hash exists in the cache.

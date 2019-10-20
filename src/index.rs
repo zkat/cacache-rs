@@ -5,6 +5,7 @@ use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use anyhow::{Context, Result};
 use async_std::{fs as afs, task};
 #[cfg(unix)]
 use chownr;
@@ -20,7 +21,6 @@ use sha2::Sha256;
 use ssri::Integrity;
 use walkdir::WalkDir;
 
-use crate::errors::Error;
 use crate::put::PutOpts;
 
 const INDEX_VERSION: &str = "5";
@@ -63,7 +63,7 @@ impl Hash for SerializableEntry {
     }
 }
 
-pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity, Error> {
+pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity> {
     let bucket = bucket_path(&cache, &key);
     #[cfg(unix)]
     {
@@ -94,11 +94,7 @@ pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity, Error
         .unwrap())
 }
 
-pub async fn insert_async<'a>(
-    cache: &'a Path,
-    key: &'a str,
-    opts: PutOpts,
-) -> Result<Integrity, Error> {
+pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: PutOpts) -> Result<Integrity> {
     let bucket = bucket_path(&cache, &key);
     let tmpbucket = bucket.clone();
     #[cfg(unix)]
@@ -107,13 +103,20 @@ pub async fn insert_async<'a>(
         let parent = tmpbucket.parent().unwrap();
         #[cfg(unix)]
         {
-            if let Some(path) = mkdirp::mkdirp(parent)? {
-                chownr::chownr(&path, uid, gid)?;
+            if let Some(path) = mkdirp::mkdirp(parent).with_context(|| {
+                format!("failed to create index bucket parent dir: {:?}", parent)
+            })? {
+                chownr::chownr(&path, uid, gid).with_context(|| {
+                    format!(
+                        "failed to change ownership for path {:?} to {:?}:{:?}",
+                        path, uid, gid
+                    )
+                })?;
             }
         }
         #[cfg(windows)]
         mkdirp::mkdirp(parent)?;
-        Ok::<(), Error>(())
+        Ok::<(), anyhow::Error>(())
     })
     .await?;
     let stringified = serde_json::to_string(&SerializableEntry {
@@ -141,7 +144,7 @@ pub async fn insert_async<'a>(
         .unwrap())
 }
 
-pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
+pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>> {
     let bucket = bucket_path(cache, &key);
     Ok(bucket_entries(&bucket)?
         .into_iter()
@@ -168,7 +171,7 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
         }))
 }
 
-pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Entry>, Error> {
+pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Entry>> {
     let bucket = bucket_path(cache, &key);
     Ok(bucket_entries_async(&bucket)
         .await?
@@ -196,7 +199,7 @@ pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Entry>, Error>
         }))
 }
 
-pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
+pub fn delete(cache: &Path, key: &str) -> Result<()> {
     insert(
         cache,
         key,
@@ -215,7 +218,7 @@ pub fn delete(cache: &Path, key: &str) -> Result<(), Error> {
     .map(|_| ())
 }
 
-pub async fn delete_async(cache: &Path, key: &str) -> Result<(), Error> {
+pub async fn delete_async(cache: &Path, key: &str) -> Result<()> {
     insert(
         cache,
         key,
@@ -234,7 +237,7 @@ pub async fn delete_async(cache: &Path, key: &str) -> Result<(), Error> {
     .map(|_| ())
 }
 
-pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Entry, Error>> {
+pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Entry>> {
     WalkDir::new(cache.join(format!("index-v{}", INDEX_VERSION)))
         .into_iter()
         .map(|bucket| {
@@ -296,7 +299,7 @@ fn now() -> u128 {
         .as_millis()
 }
 
-fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableEntry>, Error> {
+fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableEntry>> {
     use std::io::{BufRead, BufReader};
     fs::File::open(bucket)
         .map(|file| {
@@ -317,12 +320,12 @@ fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableEntry>, Error> {
             if err.kind() == ErrorKind::NotFound {
                 Ok(Vec::new())
             } else {
-                Err(err.into())
+                Err(err)?
             }
         })
 }
 
-async fn bucket_entries_async(bucket: &Path) -> Result<Vec<SerializableEntry>, Error> {
+async fn bucket_entries_async(bucket: &Path) -> Result<Vec<SerializableEntry>> {
     use async_std::io::BufReader;
     use futures::io::AsyncBufReadExt;
     use futures::stream::StreamExt;
@@ -499,7 +502,7 @@ mod tests {
 
         let mut entries = ls(&dir)
             .map(|x| Ok(x?.key))
-            .collect::<Result<Vec<_>, Error>>()
+            .collect::<Result<Vec<_>>>()
             .unwrap();
         entries.sort();
         assert_eq!(entries, vec![String::from("hello"), String::from("world")])

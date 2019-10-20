@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Mutex;
 
+use anyhow::Result;
 use async_std::fs as afs;
 use async_std::future::Future;
 use async_std::task::{self, Context, JoinHandle, Poll};
@@ -13,7 +14,6 @@ use ssri::{Algorithm, Integrity, IntegrityOpts};
 use tempfile::NamedTempFile;
 
 use crate::content::path;
-use crate::errors::Error;
 
 pub struct Writer {
     cache: PathBuf,
@@ -22,7 +22,7 @@ pub struct Writer {
 }
 
 impl Writer {
-    pub fn new(cache: &Path, algo: Algorithm) -> Result<Writer, Error> {
+    pub fn new(cache: &Path, algo: Algorithm) -> Result<Writer> {
         let cache_path = cache.to_path_buf();
         let mut tmp_path = cache_path.clone();
         tmp_path.push("tmp");
@@ -34,7 +34,7 @@ impl Writer {
         })
     }
 
-    pub fn close(self) -> Result<Integrity, Error> {
+    pub fn close(self) -> Result<Integrity> {
         let sri = self.builder.result();
         let cpath = path::content_path(&self.cache, &sri);
         DirBuilder::new()
@@ -80,7 +80,7 @@ enum Operation {
 impl AsyncWriter {
     #[allow(clippy::new_ret_no_self)]
     #[allow(clippy::needless_lifetimes)]
-    pub async fn new(cache: &Path, algo: Algorithm) -> Result<AsyncWriter, Error> {
+    pub async fn new(cache: &Path, algo: Algorithm) -> Result<AsyncWriter> {
         let cache_path = cache.to_path_buf();
         let mut tmp_path = cache_path.clone();
         tmp_path.push("tmp");
@@ -97,7 +97,7 @@ impl AsyncWriter {
         })))))
     }
 
-    pub async fn close(self) -> Result<Integrity, Error> {
+    pub async fn close(self) -> Result<Integrity> {
         // NOTE: How do I even get access to `inner` safely???
         // let inner = ???;
         // Blocking, but should be a very fast op.
@@ -121,12 +121,12 @@ impl AsyncWriter {
                                     // Safe unwrap. cpath always has multiple segments
                                     .create(cpath.parent().unwrap())
                                     .await
-                                    .map_err(Error::Io);
+                                    .map_err(anyhow::Error::new);
                                 if res.is_err() {
                                     let _ = s.send(res.map(|_| sri));
                                 } else {
                                     let res = tmpfile.persist(cpath);
-                                    let res = res.map_err(Error::PersistError);
+                                    let res = res.map_err(anyhow::Error::new);
                                     let _ = s.send(res.map(|_| sri));
                                 }
                                 State::Idle(None)
@@ -142,7 +142,6 @@ impl AsyncWriter {
         })
         .map(|opt| opt.ok_or_else(|| io_error("file closed")))
         .await?
-        .map_err(|_| Error::from(io_error("blocking task failed")))
         .await?
     }
 }
