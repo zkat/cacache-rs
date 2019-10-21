@@ -9,7 +9,6 @@ use futures::prelude::*;
 use ssri::{Algorithm, Integrity, IntegrityChecker};
 
 use crate::content::path;
-use crate::errors::Error;
 
 pub struct Reader {
     fd: File,
@@ -26,9 +25,7 @@ impl std::io::Read for Reader {
 
 impl Reader {
     pub fn check(self) -> Result<Algorithm> {
-        self.checker
-            .result()
-            .ok_or(anyhow::Error::new(Error::IntegrityError))
+        Ok(self.checker.result()?)
     }
 }
 
@@ -51,9 +48,7 @@ impl AsyncRead for AsyncReader {
 
 impl AsyncReader {
     pub fn check(self) -> Result<Algorithm> {
-        self.checker
-            .result()
-            .ok_or(anyhow::Error::new(Error::IntegrityError))
+        Ok(self.checker.result()?)
     }
 }
 
@@ -76,43 +71,31 @@ pub async fn open_async(cache: &Path, sri: Integrity) -> Result<AsyncReader> {
 pub fn read(cache: &Path, sri: &Integrity) -> Result<Vec<u8>> {
     let cpath = path::content_path(&cache, &sri);
     let ret = fs::read(&cpath)?;
-    if sri.check(&ret).is_some() {
-        Ok(ret)
-    } else {
-        Err(Error::IntegrityError)?
-    }
+    sri.check(&ret)?;
+    Ok(ret)
 }
 
 pub async fn read_async<'a>(cache: &'a Path, sri: &'a Integrity) -> Result<Vec<u8>> {
     let cpath = path::content_path(&cache, &sri);
     let ret = async_std::fs::read(&cpath).await?;
-    if sri.check(&ret).is_some() {
-        Ok(ret)
-    } else {
-        Err(Error::IntegrityError)?
-    }
+    sri.check(&ret)?;
+    Ok(ret)
 }
 
 pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64> {
     let cpath = path::content_path(&cache, &sri);
     let ret = fs::copy(&cpath, to)?;
     let data = fs::read(cpath)?;
-    if sri.check(data).is_some() {
-        Ok(ret)
-    } else {
-        Err(Error::IntegrityError)?
-    }
+    sri.check(data)?;
+    Ok(ret)
 }
 
 pub async fn copy_async<'a>(cache: &'a Path, sri: &'a Integrity, to: &'a Path) -> Result<u64> {
     let cpath = path::content_path(&cache, &sri);
     let ret = async_std::fs::copy(&cpath, to).await?;
     let data = async_std::fs::read(cpath).await?;
-    if sri.check(data).is_some() {
-        Ok(ret)
-    } else {
-        Err(Error::IntegrityError)?
-    }
+    sri.check(data)?;
+    Ok(ret)
 }
 
 pub fn has_content(cache: &Path, sri: &Integrity) -> Option<Integrity> {

@@ -4,7 +4,7 @@ use std::path::Path;
 
 use async_std::fs as afs;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use ssri::Integrity;
 
 use crate::content::rm;
@@ -43,7 +43,15 @@ where
     P: AsRef<Path>,
     K: AsRef<str>,
 {
-    index::delete_async(cache.as_ref(), key.as_ref()).await
+    index::delete_async(cache.as_ref(), key.as_ref())
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to delete cache entry for {} in cache at {:?}",
+                key.as_ref(),
+                cache.as_ref()
+            )
+        })
 }
 
 /// Removes an individual content entry. Any index entries pointing to this
@@ -76,7 +84,13 @@ where
 /// # }
 /// ```
 pub async fn content<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
-    rm::rm_async(cache.as_ref(), &sri).await
+    rm::rm_async(cache.as_ref(), &sri).await.with_context(|| {
+        format!(
+            "Failed to remove content under {} in cache at {:?}",
+            sri.to_string(),
+            cache.as_ref()
+        )
+    })
 }
 
 /// Removes entire contents of the cache, including temporary files, the entry
@@ -140,7 +154,13 @@ where
     P: AsRef<Path>,
     K: AsRef<str>,
 {
-    index::delete(cache.as_ref(), key.as_ref())
+    index::delete(cache.as_ref(), key.as_ref()).with_context(|| {
+        format!(
+            "Failed to delete cache entry for {} in cache at {:?}",
+            key.as_ref(),
+            cache.as_ref()
+        )
+    })
 }
 
 /// Removes an individual content entry synchronously. Any index entries
@@ -165,7 +185,13 @@ where
 /// # }
 /// ```
 pub fn content_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
-    rm::rm(cache.as_ref(), &sri)
+    rm::rm(cache.as_ref(), &sri).with_context(|| {
+        format!(
+            "Failed to remove content under {} in cache at {:?}",
+            sri.to_string(),
+            cache.as_ref()
+        )
+    })
 }
 
 /// Removes entire contents of the cache synchronously, including temporary

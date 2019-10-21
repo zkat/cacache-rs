@@ -5,7 +5,7 @@ use std::pin::Pin;
 
 use futures::prelude::*;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 #[cfg(unix)]
 use nix::unistd::{Gid, Uid};
 use serde_json::Value;
@@ -15,7 +15,7 @@ use crate::content::write;
 use crate::errors::Error;
 use crate::index;
 
-use std::task::{Context, Poll};
+use std::task::{Context as TaskContext, Poll};
 
 /// Writes `data` to the `cache`, indexing it under `key`.
 ///
@@ -45,9 +45,28 @@ where
     let mut writer = PutOpts::new()
         .algorithm(Algorithm::Sha256)
         .open(cache.as_ref(), key.as_ref())
-        .await?;
-    writer.write_all(data.as_ref()).await?;
-    writer.commit().await
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to open a write handle for key {} for cache at {:?}",
+                key.as_ref(),
+                cache.as_ref()
+            )
+        })?;
+    writer.write_all(data.as_ref()).await.with_context(|| {
+        format!(
+            "Failed to write to cache data for key {} for cache at {:?}",
+            key.as_ref(),
+            cache.as_ref()
+        )
+    })?;
+    writer.commit().await.with_context(|| {
+        format!(
+            "Failed to write to commit data for key {} for cache at {:?}",
+            key.as_ref(),
+            cache.as_ref()
+        )
+    })
 }
 
 /// A reference to an open file writing to the cache.
@@ -62,17 +81,17 @@ pub struct AsyncPut {
 impl AsyncWrite for AsyncPut {
     fn poll_write(
         mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
+        cx: &mut TaskContext<'_>,
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
         Pin::new(&mut self.writer).poll_write(cx, buf)
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.writer).poll_flush(cx)
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.writer).poll_close(cx)
     }
 }
@@ -83,27 +102,41 @@ impl AsyncPut {
     /// Must be called manually in order to complete the writing process,
     /// otherwise everything will be thrown out.
     pub async fn commit(mut self) -> Result<Integrity> {
-        let writer_sri = self.writer.close().await?;
+        let key = self.key;
+        let cache = self.cache;
+        let writer_sri = self.writer.close().await.with_context(|| {
+            format!(
+                "Failed to properly close save file data for key {} in cache at {:?}",
+                key, cache
+            )
+        })?;
         if let Some(sri) = &self.opts.sri {
-            // TODO - ssri should have a .matches method
-            let algo = sri.pick_algorithm();
-            let matched = sri
-                .hashes
-                .iter()
-                .take_while(|h| h.algorithm == algo)
-                .find(|&h| *h == writer_sri.hashes[0]);
-            if matched.is_none() {
-                return Err(Error::IntegrityError)?;
+            if sri.matches(&writer_sri).is_none() {
+                return Err(Error::IntegrityError(sri.clone(), writer_sri)).with_context(|| {
+                    format!(
+                        "Failed to verify data integrity while inserting {} into cache at {:?}",
+                        key, cache
+                    )
+                })?;
             }
         } else {
             self.opts.sri = Some(writer_sri);
         }
         if let Some(size) = self.opts.size {
             if size != self.written {
-                return Err(Error::SizeError)?;
+                return Err(Error::SizeError(size, self.written)).with_context(|| {
+                    format!("A size was passed in but the value inserted into {} could not be verified for cache at {:?}", key, cache)
+                })?;
             }
         }
-        index::insert_async(&self.cache, &self.key, self.opts).await
+        index::insert_async(&cache, &key, self.opts)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to write index entry for {} in cache at {:?}",
+                    key, cache
+                )
+            })
     }
 }
 
@@ -126,10 +159,28 @@ where
 {
     let mut writer = PutOpts::new()
         .algorithm(Algorithm::Sha256)
-        .open_sync(cache.as_ref(), key.as_ref())?;
-    writer.write_all(data.as_ref())?;
-    writer.flush()?;
-    writer.commit()
+        .open_sync(cache.as_ref(), key.as_ref())
+        .with_context(|| {
+            format!(
+                "Failed to open a write handle for key {} for cache at {:?}",
+                key.as_ref(),
+                cache.as_ref()
+            )
+        })?;
+    writer.write_all(data.as_ref()).with_context(|| {
+        format!(
+            "Failed to write to cache data for key {} for cache at {:?}",
+            key.as_ref(),
+            cache.as_ref()
+        )
+    })?;
+    writer.commit().with_context(|| {
+        format!(
+            "Failed to write to commit data for key {} for cache at {:?}",
+            key.as_ref(),
+            cache.as_ref()
+        )
+    })
 }
 
 /// Builder for options and flags for opening a new cache file to write data into.
@@ -258,27 +309,40 @@ impl SyncPut {
     /// Must be called manually in order to complete the writing process,
     /// otherwise everything will be thrown out.
     pub fn commit(mut self) -> Result<Integrity> {
-        let writer_sri = self.writer.close()?;
+        let key = self.key;
+        let cache = self.cache;
+        let writer_sri = self.writer.close().with_context(|| {
+            format!(
+                "Failed to properly close save file data for key {} in cache at {:?}",
+                key, cache
+            )
+        })?;
         if let Some(sri) = &self.opts.sri {
             // TODO - ssri should have a .matches method
-            let algo = sri.pick_algorithm();
-            let matched = sri
-                .hashes
-                .iter()
-                .take_while(|h| h.algorithm == algo)
-                .find(|&h| *h == writer_sri.hashes[0]);
-            if matched.is_none() {
-                return Err(Error::IntegrityError)?;
+            if sri.matches(&writer_sri).is_none() {
+                return Err(Error::IntegrityError(sri.clone(), writer_sri)).with_context(|| {
+                    format!(
+                        "Failed to verify data integrity while inserting {} into cache at {:?}",
+                        key, cache
+                    )
+                })?;
             }
         } else {
             self.opts.sri = Some(writer_sri);
         }
         if let Some(size) = self.opts.size {
             if size != self.written {
-                return Err(Error::SizeError)?;
+                return Err(Error::SizeError(size, self.written)).with_context(|| {
+                    format!("A size was passed in but the value inserted into {} could not be verified for cache at {:?}", key, cache)
+                })?;
             }
         }
-        Ok(index::insert(&self.cache, &self.key, self.opts)?)
+        index::insert(&cache, &key, self.opts).with_context(|| {
+            format!(
+                "Failed to write index entry for {} in cache at {:?}",
+                key, cache
+            )
+        })
     }
 }
 

@@ -67,27 +67,45 @@ pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity> {
     let bucket = bucket_path(&cache, &key);
     #[cfg(unix)]
     {
-        if let Some(path) = mkdirp::mkdirp(bucket.parent().unwrap())? {
-            chownr::chownr(&path, opts.uid, opts.gid)?;
+        if let Some(path) = mkdirp::mkdirp(bucket.parent().unwrap()).with_context(|| {
+            format!(
+                "Failed to create index bucket directory: {:?}",
+                bucket.parent().unwrap()
+            )
+        })? {
+            chownr::chownr(&path, opts.uid, opts.gid)
+                .with_context(|| format!("Failed to chown new index directories: {:?}", path))?;
         }
     }
     #[cfg(windows)]
-    mkdirp::mkdirp(bucket.parent().unwrap())?;
+    mkdirp::mkdirp(bucket.parent().unwrap()).with_context(|| {
+        format!(
+            "Failed to create index bucket directory: {:?}",
+            bucket.parent().unwrap()
+        )
+    })?;
     let stringified = serde_json::to_string(&SerializableEntry {
         key: key.to_owned(),
         integrity: opts.sri.clone().map(|x| x.to_string()),
         time: opts.time.unwrap_or_else(now),
         size: opts.size.unwrap_or(0),
         metadata: opts.metadata.unwrap_or_else(|| json!(null)),
-    })?;
+    })
+    .with_context(|| format!("Failed to serialize entry with key `{}`", key))?;
 
-    let mut buck = OpenOptions::new().create(true).append(true).open(&bucket)?;
+    let mut buck = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&bucket)
+        .with_context(|| format!("Failed to create or open index bucket at {:?}", bucket))?;
 
     let out = format!("\n{}\t{}", hash_entry(&stringified), stringified);
-    buck.write_all(out.as_bytes())?;
+    buck.write_all(out.as_bytes())
+        .with_context(|| format!("Failed to write to index bucket at {:?}", bucket))?;
     buck.flush()?;
     #[cfg(unix)]
-    chownr::chownr(&bucket, opts.uid, opts.gid)?;
+    chownr::chownr(&bucket, opts.uid, opts.gid)
+        .with_context(|| format!("Failed to chown index bucket at {:?}", bucket))?;
     Ok(opts
         .sri
         .or_else(|| "sha1-deadbeef".parse::<Integrity>().ok())
@@ -115,7 +133,8 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: PutOpts) -> R
             }
         }
         #[cfg(windows)]
-        mkdirp::mkdirp(parent)?;
+        mkdirp::mkdirp(parent)
+            .with_context(|| format!("failed to create index bucket parent dir: {:?}", parent))?;
         Ok::<(), anyhow::Error>(())
     })
     .await?;
@@ -125,19 +144,24 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: PutOpts) -> R
         time: opts.time.unwrap_or_else(now),
         size: opts.size.unwrap_or(0),
         metadata: opts.metadata.unwrap_or_else(|| json!(null)),
-    })?;
+    })
+    .with_context(|| format!("Failed to serialize entry with key `{}`", key))?;
 
     let mut buck = async_std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(&bucket)
-        .await?;
+        .await
+        .with_context(|| format!("Failed to create or open index bucket at {:?}", bucket))?;
 
     let out = format!("\n{}\t{}", hash_entry(&stringified), stringified);
-    buck.write_all(out.as_bytes()).await?;
+    buck.write_all(out.as_bytes())
+        .await
+        .with_context(|| format!("Failed to write to index bucket at {:?}", bucket))?;
     buck.flush().await?;
     #[cfg(unix)]
-    chownr::chownr(&bucket, opts.uid, opts.gid)?;
+    chownr::chownr(&bucket, opts.uid, opts.gid)
+        .with_context(|| format!("Failed to chown index bucket at {:?}", bucket))?;
     Ok(opts
         .sri
         .or_else(|| "sha1-deadbeef".parse::<Integrity>().ok())
@@ -146,7 +170,8 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: PutOpts) -> R
 
 pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>> {
     let bucket = bucket_path(cache, &key);
-    Ok(bucket_entries(&bucket)?
+    Ok(bucket_entries(&bucket)
+        .with_context(|| format!("Failed to read index bucket entries from {:?}", bucket))?
         .into_iter()
         .fold(None, |acc, entry| {
             if entry.key == key {
@@ -174,7 +199,8 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>> {
 pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Entry>> {
     let bucket = bucket_path(cache, &key);
     Ok(bucket_entries_async(&bucket)
-        .await?
+        .await
+        .with_context(|| format!("Failed to read index bucket entries from {:?}", bucket))?
         .into_iter()
         .fold(None, |acc, entry| {
             if entry.key == key {

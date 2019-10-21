@@ -1,16 +1,19 @@
+use std::path::PathBuf;
+
+use ssri::Integrity;
 use thiserror::Error;
 
 /// Error type returned by all API calls.
 #[derive(Error, Debug)]
 pub enum Error {
-    /// Returned when an index or content entry could not be found during
+    /// Returned when an index entry could not be found during
     /// lookup.
-    #[error("not found")]
-    NotFound,
+    #[error("Entry not found for key {1:?} in cache {0:?}")]
+    EntryNotFound(PathBuf, String),
     /// Returned when an integrity check has failed.
-    #[error("integrity check failed")]
-    IntegrityError,
+    #[error("Integrity check failed.\n\tWanted: {0}\n\tActual: {1}")]
+    IntegrityError(Integrity, Integrity),
     /// Returned when a size check has failed.
-    #[error("size check failed")]
-    SizeError,
+    #[error("Size check failed.\n\tWanted: {0}\n\tActual: {1}")]
+    SizeError(usize, usize),
 }
