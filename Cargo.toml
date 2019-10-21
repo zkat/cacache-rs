@@ -17,7 +17,7 @@ categories = [
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-ssri = "4.1.0"
+ssri = "5.0.0"
 hex = "0.3.2"
 tempfile = "3.0.8"
 sha-1 = "0.8.1"
