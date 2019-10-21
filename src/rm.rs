@@ -38,8 +38,12 @@ use crate::index;
 /// # Ok(())
 /// # }
 /// ```
-pub async fn entry<P: AsRef<Path>>(cache: P, key: &str) -> Result<()> {
-    Ok(index::delete_async(cache.as_ref(), &key).await?)
+pub async fn entry<P, K>(cache: P, key: K) -> Result<()>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+{
+    index::delete_async(cache.as_ref(), key.as_ref()).await
 }
 
 /// Removes an individual content entry. Any index entries pointing to this
@@ -131,8 +135,12 @@ pub async fn all<P: AsRef<Path>>(cache: P) -> Result<()> {
 /// # Ok(())
 /// # }
 /// ```
-pub fn entry_sync<P: AsRef<Path>>(cache: P, key: &str) -> Result<()> {
-    Ok(index::delete(cache.as_ref(), &key)?)
+pub fn entry_sync<P, K>(cache: P, key: K) -> Result<()>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+{
+    index::delete(cache.as_ref(), key.as_ref())
 }
 
 /// Removes an individual content entry synchronously. Any index entries
