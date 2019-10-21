@@ -41,24 +41,19 @@ impl AsyncGet {
     ///
     /// ## Example
     /// ```no_run
-    /// # use async_std::prelude::*;
-    /// # use async_std::task;
-    /// # use anyhow::Result;
-    /// # fn main() -> Result<()> {
-    /// # task::block_on(async {
-    /// #   example().await.unwrap();
-    /// # });
-    /// # Ok(())
-    /// # }
-    /// #
-    /// # async fn example() -> Result<()> {
-    /// let mut handle = cacache::get::open("./my-cache", "my-key").await?;
-    /// let mut str = String::new();
-    /// handle.read_to_string(&mut str).await?;
-    /// // Remember to check that the data you got was correct!
-    /// handle.check()?;
-    /// # Ok(())
-    /// # }
+    /// use async_std::prelude::*;
+    /// use async_attributes;
+    /// use anyhow::Result;
+    ///
+    /// #[async_attributes::main]
+    /// async fn main() -> Result<()> {
+    ///     let mut handle = cacache::get::open("./my-cache", "my-key").await?;
+    ///     let mut str = String::new();
+    ///     handle.read_to_string(&mut str).await?;
+    ///     // Remember to check that the data you got was correct!
+    ///     handle.check()?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn check(self) -> Result<Algorithm> {
         self.reader
@@ -72,24 +67,19 @@ impl AsyncGet {
 ///
 /// ## Example
 /// ```no_run
-/// # use async_std::prelude::*;
-/// # use async_std::task;
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # task::block_on(async {
-/// #   example().await.unwrap();
-/// # });
-/// # Ok(())
-/// # }
-/// #
-/// # async fn example() -> Result<()> {
-/// let mut handle = cacache::get::open("./my-cache", "my-key").await?;
-/// let mut str = String::new();
-/// handle.read_to_string(&mut str).await?;
-/// // Remember to check that the data you got was correct!
-/// handle.check()?;
-/// # Ok(())
-/// # }
+/// use async_std::prelude::*;
+/// use async_attributes;
+/// use anyhow::Result;
+///
+/// #[async_attributes::main]
+/// async fn main() -> Result<()> {
+///     let mut handle = cacache::get::open("./my-cache", "my-key").await?;
+///     let mut str = String::new();
+///     handle.read_to_string(&mut str).await?;
+///     // Remember to check that the data you got was correct!
+///     handle.check()?;
+///     Ok(())
+/// }
 /// ```
 pub async fn open<P, K>(cache: P, key: K) -> Result<AsyncGet>
 where
@@ -110,25 +100,20 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use async_std::prelude::*;
-/// # use async_std::task;
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # task::block_on(async {
-/// #   example().await.unwrap();
-/// # });
-/// # Ok(())
-/// # }
-/// #
-/// # async fn example() -> Result<()> {
-/// let sri = cacache::put::data("./my-cache", "key", b"hello world").await?;
-/// let mut handle = cacache::get::open_hash("./my-cache", sri).await?;
-/// let mut str = String::new();
-/// handle.read_to_string(&mut str).await?;
-/// // Remember to check that the data you got was correct!
-/// handle.check()?;
-/// # Ok(())
-/// # }
+/// use async_std::prelude::*;
+/// use async_attributes;
+/// use anyhow::Result;
+///
+/// #[async_attributes::main]
+/// async fn main() -> Result<()> {
+///     let sri = cacache::put::data("./my-cache", "key", b"hello world").await?;
+///     let mut handle = cacache::get::open_hash("./my-cache", sri).await?;
+///     let mut str = String::new();
+///     handle.read_to_string(&mut str).await?;
+///     // Remember to check that the data you got was correct!
+///     handle.check()?;
+///     Ok(())
+/// }
 /// ```
 pub async fn open_hash<P>(cache: P, sri: Integrity) -> Result<AsyncGet>
 where
@@ -144,20 +129,15 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use async_std::prelude::*;
-/// # use async_std::task;
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # task::block_on(async {
-/// #   example().await.unwrap();
-/// # });
-/// # Ok(())
-/// # }
-/// #
-/// # async fn example() -> Result<()> {
-/// let data = cacache::get::data("./my-cache", "my-key").await?;
-/// # Ok(())
-/// # }
+/// use async_std::prelude::*;
+/// use async_attributes;
+/// use anyhow::Result;
+///
+/// #[async_attributes::main]
+/// async fn main() -> Result<()> {
+///     let data = cacache::get::data("./my-cache", "my-key").await?;
+///     Ok(())
+/// }
 /// ```
 pub async fn data<P, K>(cache: P, key: K) -> Result<Vec<u8>>
 where
@@ -179,21 +159,16 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use async_std::prelude::*;
-/// # use async_std::task;
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # task::block_on(async {
-/// #   example().await.unwrap();
-/// # });
-/// # Ok(())
-/// # }
-/// #
-/// # async fn example() -> Result<()> {
-/// let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
-/// let data = cacache::get::data_hash("./my-cache", &sri).await?;
-/// # Ok(())
-/// # }
+/// use async_std::prelude::*;
+/// use async_attributes;
+/// use anyhow::Result;
+///
+/// #[async_attributes::main]
+/// async fn main() -> Result<()> {
+///     let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
+///     let data = cacache::get::data_hash("./my-cache", &sri).await?;
+///     Ok(())
+/// }
 /// ```
 pub async fn data_hash<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>>
 where
@@ -206,20 +181,15 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use async_std::prelude::*;
-/// # use async_std::task;
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # task::block_on(async {
-/// #   example().await.unwrap();
-/// # });
-/// # Ok(())
-/// # }
-/// #
-/// # async fn example() -> Result<()> {
-/// cacache::get::copy("./my-cache", "my-key", "./data.txt").await?;
-/// # Ok(())
-/// # }
+/// use async_std::prelude::*;
+/// use async_attributes;
+/// use anyhow::Result;
+///
+/// #[async_attributes::main]
+/// async fn main() -> Result<()> {
+///     cacache::get::copy("./my-cache", "my-key", "./data.txt").await?;
+///     Ok(())
+/// }
 /// ```
 pub async fn copy<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64>
 where
@@ -241,21 +211,16 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use async_std::prelude::*;
-/// # use async_std::task;
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # task::block_on(async {
-/// #   example().await.unwrap();
-/// # });
-/// # Ok(())
-/// # }
-/// #
-/// # async fn example() -> Result<()> {
-/// let sri = cacache::put::data("./my-cache", "my-key", b"hello world").await?;
-/// cacache::get::copy_hash("./my-cache", &sri, "./data.txt").await?;
-/// # Ok(())
-/// # }
+/// use async_std::prelude::*;
+/// use async_attributes;
+/// use anyhow::Result;
+///
+/// #[async_attributes::main]
+/// async fn main() -> Result<()> {
+///     let sri = cacache::put::data("./my-cache", "my-key", b"hello world").await?;
+///     cacache::get::copy_hash("./my-cache", &sri, "./data.txt").await?;
+///     Ok(())
+/// }
 /// ```
 pub async fn copy_hash<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64>
 where
@@ -307,16 +272,17 @@ impl SyncGet {
     ///
     /// ## Example
     /// ```no_run
-    /// # use anyhow::Result;
-    /// # fn main() -> Result<()> {
-    /// # use std::io::Read;
-    /// let mut handle = cacache::get::open_sync("./my-cache", "my-key")?;
-    /// let mut str = String::new();
+    /// use anyhow::Result;
+    /// use std::io::Read;
+    ///
+    /// fn main() -> Result<()> {
+    ///     let mut handle = cacache::get::open_sync("./my-cache", "my-key")?;
+    ///     let mut str = String::new();
     /// handle.read_to_string(&mut str)?;
-    /// // Remember to check that the data you got was correct!
-    /// handle.check()?;
-    /// # Ok(())
-    /// # }
+    ///     // Remember to check that the data you got was correct!
+    ///     handle.check()?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn check(self) -> Result<Algorithm> {
         self.reader
@@ -330,16 +296,17 @@ impl SyncGet {
 ///
 /// ## Example
 /// ```no_run
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # use std::io::Read;
-/// let mut handle = cacache::get::open_sync("./my-cache", "my-key")?;
-/// let mut str = String::new();
-/// handle.read_to_string(&mut str)?;
-/// // Remember to check that the data you got was correct!
-/// handle.check()?;
-/// # Ok(())
-/// # }
+/// use anyhow::Result;
+/// use std::io::Read;
+///
+/// fn main() -> Result<()> {
+///     let mut handle = cacache::get::open_sync("./my-cache", "my-key")?;
+///     let mut str = String::new();
+///     handle.read_to_string(&mut str)?;
+///     // Remember to check that the data you got was correct!
+///     handle.check()?;
+///     Ok(())
+/// }
 /// ```
 pub fn open_sync<P, K>(cache: P, key: K) -> Result<SyncGet>
 where
@@ -360,17 +327,18 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # use std::io::Read;
-/// let sri = cacache::put::data_sync("./my-cache", "key", b"hello world")?;
-/// let mut handle = cacache::get::open_hash_sync("./my-cache", sri)?;
-/// let mut str = String::new();
-/// handle.read_to_string(&mut str)?;
-/// // Remember to check that the data you got was correct!
-/// handle.check()?;
-/// # Ok(())
-/// # }
+/// use anyhow::Result;
+/// use std::io::Read;
+///
+/// fn main() -> Result<()> {
+///     let sri = cacache::put::data_sync("./my-cache", "key", b"hello world")?;
+///     let mut handle = cacache::get::open_hash_sync("./my-cache", sri)?;
+///     let mut str = String::new();
+///     handle.read_to_string(&mut str)?;
+///     // Remember to check that the data you got was correct!
+///     handle.check()?;
+///     Ok(())
+/// }
 /// ```
 pub fn open_hash_sync<P>(cache: P, sri: Integrity) -> Result<SyncGet>
 where
@@ -386,12 +354,13 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # use std::io::Read;
-/// let data = cacache::get::data_sync("./my-cache", "my-key")?;
-/// # Ok(())
-/// # }
+/// use anyhow::Result;
+/// use std::io::Read;
+///
+/// fn main() -> Result<()> {
+///     let data = cacache::get::data_sync("./my-cache", "my-key")?;
+///     Ok(())
+/// }
 /// ```
 pub fn data_sync<P, K>(cache: P, key: K) -> Result<Vec<u8>>
 where
@@ -413,13 +382,14 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # use std::io::Read;
-/// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
-/// let data = cacache::get::data_hash_sync("./my-cache", &sri)?;
-/// # Ok(())
-/// # }
+/// use anyhow::Result;
+/// use std::io::Read;
+///
+/// fn main() -> Result<()> {
+///     let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+///     let data = cacache::get::data_hash_sync("./my-cache", &sri)?;
+///     Ok(())
+/// }
 /// ```
 pub fn data_hash_sync<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>>
 where
@@ -432,12 +402,13 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # use std::io::Read;
-/// cacache::get::copy_sync("./my-cache", "my-key", "./my-hello.txt")?;
-/// # Ok(())
-/// # }
+/// use anyhow::Result;
+/// use std::io::Read;
+///
+/// fn main() -> Result<()> {
+///     cacache::get::copy_sync("./my-cache", "my-key", "./my-hello.txt")?;
+///     Ok(())
+/// }
 /// ```
 pub fn copy_sync<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64>
 where
@@ -459,13 +430,14 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # use std::io::Read;
-/// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
-/// cacache::get::copy_hash_sync("./my-cache", &sri, "./my-hello.txt")?;
-/// # Ok(())
-/// # }
+/// use anyhow::Result;
+/// use std::io::Read;
+///
+/// fn main() -> Result<()> {
+///     let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+///     cacache::get::copy_hash_sync("./my-cache", &sri, "./my-hello.txt")?;
+///     Ok(())
+/// }
 /// ```
 pub fn copy_hash_sync<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64>
 where

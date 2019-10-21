@@ -21,20 +21,14 @@ use std::task::{Context as TaskContext, Poll};
 ///
 /// ## Example
 /// ```no_run
-/// # use async_std::prelude::*;
-/// # use async_std::task;
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # task::block_on(async {
-/// #   example().await.unwrap();
-/// # });
-/// # Ok(())
-/// # }
-/// #
-/// # async fn example() -> Result<()> {
-/// cacache::put::data("./my-cache", "my-key", b"hello").await?;
-/// # Ok(())
-/// # }
+/// use async_attributes;
+/// use anyhow::Result;
+///
+/// #[async_attributes::main]
+/// async fn main() -> Result<()> {
+///     cacache::put::data("./my-cache", "my-key", b"hello").await?;
+///     Ok(())
+/// }
 /// ```
 pub async fn data<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity>
 where
@@ -144,12 +138,13 @@ impl AsyncPut {
 ///
 /// ## Example
 /// ```no_run
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # use std::io::Read;
-/// let data = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
-/// # Ok(())
-/// # }
+/// use anyhow::Result;
+/// use std::io::Read;
+///
+/// fn main() -> Result<()> {
+///     let data = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+///     Ok(())
+/// }
 /// ```
 pub fn data_sync<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity>
 where

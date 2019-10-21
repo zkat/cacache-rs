@@ -15,28 +15,23 @@ use crate::index;
 ///
 /// ## Example
 /// ```no_run
-/// # use async_std::prelude::*;
-/// # use async_std::task;
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # task::block_on(async {
-/// #   example().await.unwrap();
-/// # });
-/// # Ok(())
-/// # }
-/// #
-/// # async fn example() -> Result<()> {
-/// let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
+/// use async_std::prelude::*;
+/// use async_attributes;
+/// use anyhow::Result;
 ///
-/// cacache::rm::entry("./my-cache", "my-key").await?;
+/// #[async_attributes::main]
+/// async fn main() -> Result<()> {
+///     let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
 ///
-/// // This fails:
-/// cacache::get::data("./my-cache", "my-key").await?;
+///     cacache::rm::entry("./my-cache", "my-key").await?;
 ///
-/// // But this succeeds:
-/// cacache::get::data_hash("./my-cache", &sri).await?;
-/// # Ok(())
-/// # }
+///     // This fails:
+///     cacache::get::data("./my-cache", "my-key").await?;
+///
+///     // But this succeeds:
+///     cacache::get::data_hash("./my-cache", &sri).await?;
+///     Ok(())
+/// }
 /// ```
 pub async fn entry<P, K>(cache: P, key: K) -> Result<()>
 where
@@ -59,29 +54,25 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use async_std::prelude::*;
-/// # use async_std::task;
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # task::block_on(async {
-/// #   example().await.unwrap();
-/// # });
-/// # Ok(())
-/// # }
-/// #
-/// # async fn example() -> Result<()> {
-/// let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
+/// use async_std::prelude::*;
+/// use async_attributes;
+/// use anyhow::Result;
 ///
-/// cacache::rm::entry("./my-cache", "my-key").await?;
+/// #[async_attributes::main]
+/// async fn main() -> Result<()> {
+///     let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
 ///
-/// // These fail:
-/// cacache::get::data("./my-cache", "my-key").await?;
-/// cacache::get::data_hash("./my-cache", &sri).await?;
+///     cacache::rm::entry("./my-cache", "my-key").await?;
 ///
-/// // But this succeeds:
-/// cacache::get::entry("./my-cache", "my-key").await?;
-/// # Ok(())
-/// # }
+///     // These fail:
+///     cacache::get::data("./my-cache", "my-key").await?;
+///     cacache::get::data_hash("./my-cache", &sri).await?;
+///
+///     // But this succeeds:
+///     cacache::get::entry("./my-cache", "my-key").await?;
+///
+///     Ok(())
+/// }
 /// ```
 pub async fn content<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
     rm::rm_async(cache.as_ref(), &sri).await.with_context(|| {
@@ -98,27 +89,23 @@ pub async fn content<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
 ///
 /// ## Example
 /// ```no_run
-/// # use async_std::prelude::*;
-/// # use async_std::task;
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # task::block_on(async {
-/// #   example().await.unwrap();
-/// # });
-/// # Ok(())
-/// # }
-/// #
-/// # async fn example() -> Result<()> {
-/// let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
+/// use async_std::prelude::*;
+/// use async_attributes;
+/// use anyhow::Result;
 ///
-/// cacache::rm::entry("./my-cache", "my-key").await?;
+/// #[async_attributes::main]
+/// async fn main() -> Result<()> {
+///     let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
 ///
-/// // These all fail:
-/// cacache::get::data("./my-cache", "my-key").await?;
-/// cacache::get::entry("./my-cache", "my-key").await?;
-/// cacache::get::data_hash("./my-cache", &sri).await?;
-/// # Ok(())
-/// # }
+///     cacache::rm::entry("./my-cache", "my-key").await?;
+///
+///     // These all fail:
+///     cacache::get::data("./my-cache", "my-key").await?;
+///     cacache::get::entry("./my-cache", "my-key").await?;
+///     cacache::get::data_hash("./my-cache", &sri).await?;
+///
+///     Ok(())
+/// }
 /// ```
 pub async fn all<P: AsRef<Path>>(cache: P) -> Result<()> {
     for entry in cache.as_ref().read_dir()? {
@@ -134,20 +121,22 @@ pub async fn all<P: AsRef<Path>>(cache: P) -> Result<()> {
 ///
 /// ## Example
 /// ```no_run
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # use std::io::Read;
-/// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+/// use anyhow::Result;
+/// use std::io::Read;
 ///
-/// cacache::rm::entry_sync("./my-cache", "my-key")?;
+/// fn main() -> Result<()> {
+///     let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
 ///
-/// // This fails:
-/// cacache::get::data_sync("./my-cache", "my-key")?;
+///     cacache::rm::entry_sync("./my-cache", "my-key")?;
 ///
-/// // But this succeeds:
-/// cacache::get::data_hash_sync("./my-cache", &sri)?;
-/// # Ok(())
-/// # }
+///     // This fails:
+///     cacache::get::data_sync("./my-cache", "my-key")?;
+///
+///     // But this succeeds:
+///     cacache::get::data_hash_sync("./my-cache", &sri)?;
+///
+///     Ok(())
+/// }
 /// ```
 pub fn entry_sync<P, K>(cache: P, key: K) -> Result<()>
 where
@@ -168,21 +157,23 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # use std::io::Read;
-/// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+/// use anyhow::Result;
+/// use std::io::Read;
 ///
-/// cacache::rm::entry_sync("./my-cache", "my-key")?;
+/// fn main() -> Result<()> {
+///     let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
 ///
-/// // These fail:
-/// cacache::get::data_sync("./my-cache", "my-key")?;
-/// cacache::get::data_hash_sync("./my-cache", &sri)?;
+///     cacache::rm::entry_sync("./my-cache", "my-key")?;
 ///
-/// // But this succeeds:
-/// cacache::get::entry_sync("./my-cache", "my-key")?;
-/// # Ok(())
-/// # }
+///     // These fail:
+///     cacache::get::data_sync("./my-cache", "my-key")?;
+///     cacache::get::data_hash_sync("./my-cache", &sri)?;
+///
+///     // But this succeeds:
+///     cacache::get::entry_sync("./my-cache", "my-key")?;
+///
+///     Ok(())
+/// }
 /// ```
 pub fn content_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
     rm::rm(cache.as_ref(), &sri).with_context(|| {
@@ -199,19 +190,21 @@ pub fn content_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
 ///
 /// ## Example
 /// ```no_run
-/// # use anyhow::Result;
-/// # fn main() -> Result<()> {
-/// # use std::io::Read;
-/// let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+/// use anyhow::Result;
+/// use std::io::Read;
 ///
-/// cacache::rm::entry_sync("./my-cache", "my-key")?;
+/// fn main() -> Result<()> {
+///     let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
 ///
-/// // These all fail:
-/// cacache::get::data_sync("./my-cache", "my-key")?;
-/// cacache::get::data_hash_sync("./my-cache", &sri)?;
-/// cacache::get::entry_sync("./my-cache", "my-key")?;
-/// # Ok(())
-/// # }
+///     cacache::rm::entry_sync("./my-cache", "my-key")?;
+///
+///     // These all fail:
+///     cacache::get::data_sync("./my-cache", "my-key")?;
+///     cacache::get::data_hash_sync("./my-cache", &sri)?;
+///     cacache::get::entry_sync("./my-cache", "my-key")?;
+///
+///     Ok(())
+/// }
 /// ```
 pub fn all_sync<P: AsRef<Path>>(cache: P) -> Result<()> {
     for entry in cache.as_ref().read_dir()? {
