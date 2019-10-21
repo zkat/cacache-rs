@@ -1,5 +1,27 @@
 <a name="3.0.0"></a>
 
+## 3.0.0 (2019-10-21)
+
+#### Bug Fixes
+
+- **fmt:** cargo fmt --all ([38115599](https://github.com/zkat/cacache-rs/commit/38115599ca9cc9f6426b950d16399f9e03871dd3))
+
+#### Breaking Changes
+
+- **errors:**
+  - improved errors messaging and context (#20) ([62298cdf](https://github.com/zkat/cacache-rs/commit/62298cdf351d7ed10b54417ae7a702d07b4b4765))
+  - Replace failure with anyhow crate (#17) ([ee149a70](https://github.com/zkat/cacache-rs/commit/ee149a70cab9ec37951aef47a21c40a0d6efb234))
+
+#### Features
+
+- **errors:**
+  - improved errors messaging and context (#20) ([62298cdf](https://github.com/zkat/cacache-rs/commit/62298cdf351d7ed10b54417ae7a702d07b4b4765))
+  - Replace failure with anyhow crate (#17) ([ee149a70](https://github.com/zkat/cacache-rs/commit/ee149a70cab9ec37951aef47a21c40a0d6efb234))
+- **license:** Add in Patron license to make proprietary stuff more clear ([fbeb6ec0](https://github.com/zkat/cacache-rs/commit/fbeb6ec0ff77e022d87dc03865d4136bbbd8fbc6))
+- **rm:** Accept AsRef<str> for keys ([64939851](https://github.com/zkat/cacache-rs/commit/649398512f339933605ed70cade3ca16962a6b26))
+
+<a name="3.0.0"></a>
+
 ## 3.0.0 (2019-10-19)
 
 #### Features
