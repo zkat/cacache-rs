@@ -1,11 +1,11 @@
 //! Functions for reading from cache.
 use std::path::Path;
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{Context as TaskContext, Poll};
 
 use futures::prelude::*;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use ssri::{Algorithm, Integrity};
 
 use crate::content::read::{self, AsyncReader, Reader};
@@ -27,7 +27,7 @@ pub struct AsyncGet {
 impl AsyncRead for AsyncGet {
     fn poll_read(
         mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
+        cx: &mut TaskContext<'_>,
         buf: &mut [u8],
     ) -> Poll<std::io::Result<usize>> {
         Pin::new(&mut self.reader).poll_read(cx, buf)
@@ -61,7 +61,9 @@ impl AsyncGet {
     /// # }
     /// ```
     pub fn check(self) -> Result<Algorithm> {
-        self.reader.check()
+        self.reader
+            .check()
+            .context("Cache read data verification check failed.")
     }
 }
 
@@ -97,7 +99,10 @@ where
     if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
         open_hash(cache, entry.integrity).await
     } else {
-        Err(Error::NotFound)?
+        Err(Error::EntryNotFound(
+            cache.as_ref().to_path_buf(),
+            key.as_ref().into(),
+        ))?
     }
 }
 
@@ -162,7 +167,10 @@ where
     if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
         data_hash(cache, &entry.integrity).await
     } else {
-        Err(Error::NotFound)?
+        Err(Error::EntryNotFound(
+            cache.as_ref().to_path_buf(),
+            key.as_ref().into(),
+        ))?
     }
 }
 
@@ -222,7 +230,10 @@ where
     if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
         copy_hash(cache, &entry.integrity, to).await
     } else {
-        Err(Error::NotFound)?
+        Err(Error::EntryNotFound(
+            cache.as_ref().to_path_buf(),
+            key.as_ref().into(),
+        ))?
     }
 }
 
@@ -308,7 +319,9 @@ impl SyncGet {
     /// # }
     /// ```
     pub fn check(self) -> Result<Algorithm> {
-        self.reader.check()
+        self.reader
+            .check()
+            .context("Cache read data verification check failed.")
     }
 }
 
@@ -336,7 +349,10 @@ where
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
         open_hash_sync(cache, entry.integrity)
     } else {
-        Err(Error::NotFound)?
+        Err(Error::EntryNotFound(
+            cache.as_ref().to_path_buf(),
+            key.as_ref().into(),
+        ))?
     }
 }
 
@@ -385,7 +401,10 @@ where
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
         data_hash_sync(cache, &entry.integrity)
     } else {
-        Err(Error::NotFound)?
+        Err(Error::EntryNotFound(
+            cache.as_ref().to_path_buf(),
+            key.as_ref().into(),
+        ))?
     }
 }
 
@@ -429,7 +448,10 @@ where
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
         copy_hash_sync(cache, &entry.integrity, to)
     } else {
-        Err(Error::NotFound)?
+        Err(Error::EntryNotFound(
+            cache.as_ref().to_path_buf(),
+            key.as_ref().into(),
+        ))?
     }
 }
 

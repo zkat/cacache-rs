@@ -44,6 +44,7 @@ Using [`cargo-edit`](https://crates.io/crates/cargo-edit)
 - Fault tolerance (immune to corruption, partial writes, process races, etc)
 - Consistency guarantees on read and write (full data verification)
 - Lockless, high-concurrency cache access
+- Really helpful, contextual error messages
 - Large file support
 - Pretty darn fast
 - Arbitrary metadata storage
