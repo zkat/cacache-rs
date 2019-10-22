@@ -13,10 +13,10 @@ async fn main() -> Result<(), cacache::Error> {
     let dir = String::from("./my-cache");
 
     // Write some data!
-    cacache::put::data(&dir, "key", b"my-async-data").await?;
+    cacache::write(&dir, "key", b"my-async-data").await?;
 
     // Get the data back!
-    let data = cacache::get::data(&dir, "key").await?;
+    let data = cacache::read(&dir, "key").await?;
     assert_eq!(data, b"my-async-data");
 
     // Clean up the data!
@@ -36,11 +36,13 @@ Using [`cargo-edit`](https://crates.io/crates/cargo-edit)
 
 ## Features
 
-- First-class async support, using [`async-std`](https://crates.io/crates/async-std) as its runtime. Sync APIs are available but secondary.
+- First-class async support, using [`async-std`](https://crates.io/crates/async-std) as its runtime. Sync APIs are available but secondary
+- `std::fs`-style API
 - Extraction by key or by content address (shasum, etc)
 - [Subresource Integrity](#integrity) web standard support
 - Multi-hash support - safely host sha1, sha512, etc, in a single cache
 - Automatic content deduplication
+- Atomic content writes even for large data
 - Fault tolerance (immune to corruption, partial writes, process races, etc)
 - Consistency guarantees on read and write (full data verification)
 - Lockless, high-concurrency cache access
@@ -48,6 +50,7 @@ Using [`cargo-edit`](https://crates.io/crates/cargo-edit)
 - Large file support
 - Pretty darn fast
 - Arbitrary metadata storage
+- Cross-platform: Windows and case-(in)sensitive filesystem support
 - Punches nazis
 
 ## Contributing
