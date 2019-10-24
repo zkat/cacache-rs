@@ -21,13 +21,13 @@ use sha2::Sha256;
 use ssri::Integrity;
 use walkdir::WalkDir;
 
-use crate::put::PutOpts;
+use crate::put::WriteOpts;
 
 const INDEX_VERSION: &str = "5";
 
 /// Represents a cache index entry, which points to content.
 #[derive(PartialEq, Debug)]
-pub struct Entry {
+pub struct Metadata {
     /// Key this entry is stored under.
     pub key: String,
     /// Integrity hash for the stored data. Acts as a key into {cache}/content.
@@ -36,12 +36,12 @@ pub struct Entry {
     pub time: u128,
     /// Size of data associated with this entry.
     pub size: usize,
-    /// Arbitrary JSON metadata associated with this entry.
+    /// Arbitrary JSON  associated with this entry.
     pub metadata: Value,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-struct SerializableEntry {
+struct SerializableMetadata {
     key: String,
     integrity: Option<String>,
     time: u128,
@@ -49,21 +49,21 @@ struct SerializableEntry {
     metadata: Value,
 }
 
-impl PartialEq for SerializableEntry {
+impl PartialEq for SerializableMetadata {
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
     }
 }
 
-impl Eq for SerializableEntry {}
+impl Eq for SerializableMetadata {}
 
-impl Hash for SerializableEntry {
+impl Hash for SerializableMetadata {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.key.hash(state);
     }
 }
 
-pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity> {
+pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
     let bucket = bucket_path(&cache, &key);
     #[cfg(unix)]
     {
@@ -84,7 +84,7 @@ pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity> {
             bucket.parent().unwrap()
         )
     })?;
-    let stringified = serde_json::to_string(&SerializableEntry {
+    let stringified = serde_json::to_string(&SerializableMetadata {
         key: key.to_owned(),
         integrity: opts.sri.clone().map(|x| x.to_string()),
         time: opts.time.unwrap_or_else(now),
@@ -112,11 +112,11 @@ pub fn insert(cache: &Path, key: &str, opts: PutOpts) -> Result<Integrity> {
         .unwrap())
 }
 
-pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: PutOpts) -> Result<Integrity> {
+pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) -> Result<Integrity> {
     let bucket = bucket_path(&cache, &key);
     let tmpbucket = bucket.clone();
     #[cfg(unix)]
-    let PutOpts { uid, gid, .. } = opts;
+    let WriteOpts { uid, gid, .. } = opts;
     task::spawn_blocking(move || {
         let parent = tmpbucket.parent().unwrap();
         #[cfg(unix)]
@@ -138,7 +138,7 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: PutOpts) -> R
         Ok::<(), anyhow::Error>(())
     })
     .await?;
-    let stringified = serde_json::to_string(&SerializableEntry {
+    let stringified = serde_json::to_string(&SerializableMetadata {
         key: key.to_owned(),
         integrity: opts.sri.clone().map(|x| x.to_string()),
         time: opts.time.unwrap_or_else(now),
@@ -168,7 +168,7 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: PutOpts) -> R
         .unwrap())
 }
 
-pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>> {
+pub fn find(cache: &Path, key: &str) -> Result<Option<Metadata>> {
     let bucket = bucket_path(cache, &key);
     Ok(bucket_entries(&bucket)
         .with_context(|| format!("Failed to read index bucket entries from {:?}", bucket))?
@@ -180,7 +180,7 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>> {
                         Ok(sri) => sri,
                         _ => return acc,
                     };
-                    Some(Entry {
+                    Some(Metadata {
                         key: entry.key,
                         integrity,
                         size: entry.size,
@@ -196,7 +196,7 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Entry>> {
         }))
 }
 
-pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Entry>> {
+pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Metadata>> {
     let bucket = bucket_path(cache, &key);
     Ok(bucket_entries_async(&bucket)
         .await
@@ -209,7 +209,7 @@ pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Entry>> {
                         Ok(sri) => sri,
                         _ => return acc,
                     };
-                    Some(Entry {
+                    Some(Metadata {
                         key: entry.key,
                         integrity,
                         size: entry.size,
@@ -229,7 +229,7 @@ pub fn delete(cache: &Path, key: &str) -> Result<()> {
     insert(
         cache,
         key,
-        PutOpts {
+        WriteOpts {
             algorithm: None,
             size: None,
             sri: None,
@@ -248,7 +248,7 @@ pub async fn delete_async(cache: &Path, key: &str) -> Result<()> {
     insert(
         cache,
         key,
-        PutOpts {
+        WriteOpts {
             algorithm: None,
             size: None,
             sri: None,
@@ -263,7 +263,7 @@ pub async fn delete_async(cache: &Path, key: &str) -> Result<()> {
     .map(|_| ())
 }
 
-pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Entry>> {
+pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Metadata>> {
     WalkDir::new(cache.join(format!("index-v{}", INDEX_VERSION)))
         .into_iter()
         .map(|bucket| {
@@ -274,11 +274,11 @@ pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Entry>> {
 
             Ok(bucket_entries(bucket.path())?
                 .into_iter()
-                .collect::<HashSet<SerializableEntry>>()
+                .collect::<HashSet<SerializableMetadata>>()
                 .into_iter()
                 .filter_map(|se| {
                     if let Some(i) = se.integrity {
-                        Some(Entry {
+                        Some(Metadata {
                             key: se.key,
                             integrity: i.parse().unwrap(),
                             time: se.time,
@@ -325,7 +325,7 @@ fn now() -> u128 {
         .as_millis()
 }
 
-fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableEntry>> {
+fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableMetadata>> {
     use std::io::{BufRead, BufReader};
     fs::File::open(bucket)
         .map(|file| {
@@ -338,7 +338,7 @@ fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableEntry>> {
                         // Something's wrong with the entry. Abort.
                         _ => return None,
                     };
-                    serde_json::from_str::<SerializableEntry>(entry_str).ok()
+                    serde_json::from_str::<SerializableMetadata>(entry_str).ok()
                 })
                 .collect()
         })
@@ -351,7 +351,7 @@ fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableEntry>> {
         })
 }
 
-async fn bucket_entries_async(bucket: &Path) -> Result<Vec<SerializableEntry>> {
+async fn bucket_entries_async(bucket: &Path) -> Result<Vec<SerializableMetadata>> {
     use async_std::io::BufReader;
     use futures::io::AsyncBufReadExt;
     use futures::stream::StreamExt;
@@ -374,7 +374,7 @@ async fn bucket_entries_async(bucket: &Path) -> Result<Vec<SerializableEntry>> {
                 // Something's wrong with the entry. Abort.
                 _ => continue,
             };
-            if let Ok(serialized) = serde_json::from_str::<SerializableEntry>(entry_str) {
+            if let Ok(serialized) = serde_json::from_str::<SerializableMetadata>(entry_str) {
                 vec.push(serialized);
             }
         }
@@ -396,7 +396,7 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
-        let opts = PutOpts::new().integrity(sri).time(time);
+        let opts = WriteOpts::new().integrity(sri).time(time);
         insert(&dir, "hello", opts).unwrap();
         let entry = std::fs::read_to_string(bucket_path(&dir, "hello")).unwrap();
         assert_eq!(entry, MOCK_ENTRY);
@@ -408,7 +408,7 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
-        let opts = PutOpts::new().integrity(sri).time(time);
+        let opts = WriteOpts::new().integrity(sri).time(time);
         task::block_on(async {
             insert_async(&dir, "hello", opts).await.unwrap();
         });
@@ -428,7 +428,7 @@ mod tests {
         let entry = find(&dir, "hello").unwrap().unwrap();
         assert_eq!(
             entry,
-            Entry {
+            Metadata {
                 key: String::from("hello"),
                 integrity: sri,
                 time,
@@ -451,7 +451,7 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
-        let opts = PutOpts::new().integrity(sri).time(time);
+        let opts = WriteOpts::new().integrity(sri).time(time);
         insert(&dir, "hello", opts).unwrap();
         delete(&dir, "hello").unwrap();
         assert_eq!(find(&dir, "hello").unwrap(), None);
@@ -463,7 +463,7 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
-        let opts = PutOpts::new().integrity(sri).time(time);
+        let opts = WriteOpts::new().integrity(sri).time(time);
         insert(&dir, "hello", opts).unwrap();
         task::block_on(async {
             delete_async(&dir, "hello").await.unwrap();
@@ -477,12 +477,12 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
-        let opts = PutOpts::new().integrity(sri.clone()).time(time);
+        let opts = WriteOpts::new().integrity(sri.clone()).time(time);
         insert(&dir, "hello", opts).unwrap();
         let entry = find(&dir, "hello").unwrap().unwrap();
         assert_eq!(
             entry,
-            Entry {
+            Metadata {
                 key: String::from("hello"),
                 integrity: sri,
                 time,
@@ -498,14 +498,14 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
-        let opts = PutOpts::new().integrity(sri.clone()).time(time);
+        let opts = WriteOpts::new().integrity(sri.clone()).time(time);
         task::block_on(async {
             insert_async(&dir, "hello", opts).await.unwrap();
         });
         let entry = task::block_on(async { find_async(&dir, "hello").await.unwrap().unwrap() });
         assert_eq!(
             entry,
-            Entry {
+            Metadata {
                 key: String::from("hello"),
                 integrity: sri,
                 time,
@@ -521,9 +521,9 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
-        let opts = PutOpts::new().integrity(sri.clone()).time(time);
+        let opts = WriteOpts::new().integrity(sri.clone()).time(time);
         insert(&dir, "hello", opts).unwrap();
-        let opts = PutOpts::new().integrity(sri).time(time);
+        let opts = WriteOpts::new().integrity(sri).time(time);
         insert(&dir, "world", opts).unwrap();
 
         let mut entries = ls(&dir)

@@ -10,8 +10,8 @@ use ssri::Integrity;
 use crate::content::rm;
 use crate::index;
 
-/// Removes an individual index entry. The associated content will be left
-/// intact.
+/// Removes an individual index metadata entry. The associated content will be
+/// left in the cache.
 ///
 /// ## Example
 /// ```no_run
@@ -21,19 +21,20 @@ use crate::index;
 ///
 /// #[async_attributes::main]
 /// async fn main() -> Result<()> {
-///     let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
+///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
 ///
-///     cacache::rm::entry("./my-cache", "my-key").await?;
+///     cacache::remove("./my-cache", "my-key").await?;
 ///
 ///     // This fails:
-///     cacache::get::data("./my-cache", "my-key").await?;
+///     cacache::read("./my-cache", "my-key").await?;
 ///
 ///     // But this succeeds:
-///     cacache::get::data_hash("./my-cache", &sri).await?;
+///     cacache::read_hash("./my-cache", &sri).await?;
+///
 ///     Ok(())
 /// }
 /// ```
-pub async fn entry<P, K>(cache: P, key: K) -> Result<()>
+pub async fn remove<P, K>(cache: P, key: K) -> Result<()>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
@@ -60,21 +61,21 @@ where
 ///
 /// #[async_attributes::main]
 /// async fn main() -> Result<()> {
-///     let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
+///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
 ///
-///     cacache::rm::entry("./my-cache", "my-key").await?;
+///     cacache::remove_hash("./my-cache", &sri).await?;
 ///
 ///     // These fail:
-///     cacache::get::data("./my-cache", "my-key").await?;
-///     cacache::get::data_hash("./my-cache", &sri).await?;
+///     cacache::read("./my-cache", "my-key").await?;
+///     cacache::read_hash("./my-cache", &sri).await?;
 ///
 ///     // But this succeeds:
-///     cacache::get::entry("./my-cache", "my-key").await?;
+///     cacache::metadata("./my-cache", "my-key").await?;
 ///
 ///     Ok(())
 /// }
 /// ```
-pub async fn content<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
+pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
     rm::rm_async(cache.as_ref(), &sri).await.with_context(|| {
         format!(
             "Failed to remove content under {} in cache at {:?}",
@@ -95,19 +96,19 @@ pub async fn content<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
 ///
 /// #[async_attributes::main]
 /// async fn main() -> Result<()> {
-///     let sri = cacache::put::data("./my-cache", "my-key", b"hello").await?;
+///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
 ///
-///     cacache::rm::entry("./my-cache", "my-key").await?;
+///     cacache::clear("./my-cache").await?;
 ///
 ///     // These all fail:
-///     cacache::get::data("./my-cache", "my-key").await?;
-///     cacache::get::entry("./my-cache", "my-key").await?;
-///     cacache::get::data_hash("./my-cache", &sri).await?;
+///     cacache::read("./my-cache", "my-key").await?;
+///     cacache::metadata("./my-cache", "my-key").await?;
+///     cacache::read_hash("./my-cache", &sri).await?;
 ///
 ///     Ok(())
 /// }
 /// ```
-pub async fn all<P: AsRef<Path>>(cache: P) -> Result<()> {
+pub async fn clear<P: AsRef<Path>>(cache: P) -> Result<()> {
     for entry in cache.as_ref().read_dir()? {
         if let Ok(entry) = entry {
             afs::remove_dir_all(entry.path()).await?;
@@ -117,7 +118,7 @@ pub async fn all<P: AsRef<Path>>(cache: P) -> Result<()> {
 }
 
 /// Removes an individual index entry synchronously. The associated content
-/// will be left intact.
+/// will be left in the cache.
 ///
 /// ## Example
 /// ```no_run
@@ -125,20 +126,20 @@ pub async fn all<P: AsRef<Path>>(cache: P) -> Result<()> {
 /// use std::io::Read;
 ///
 /// fn main() -> Result<()> {
-///     let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello")?;
 ///
-///     cacache::rm::entry_sync("./my-cache", "my-key")?;
+///     cacache::remove_sync("./my-cache", "my-key")?;
 ///
 ///     // This fails:
-///     cacache::get::data_sync("./my-cache", "my-key")?;
+///     cacache::read_sync("./my-cache", "my-key")?;
 ///
 ///     // But this succeeds:
-///     cacache::get::data_hash_sync("./my-cache", &sri)?;
+///     cacache::read_hash_sync("./my-cache", &sri)?;
 ///
 ///     Ok(())
 /// }
 /// ```
-pub fn entry_sync<P, K>(cache: P, key: K) -> Result<()>
+pub fn remove_sync<P, K>(cache: P, key: K) -> Result<()>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
@@ -161,21 +162,21 @@ where
 /// use std::io::Read;
 ///
 /// fn main() -> Result<()> {
-///     let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello")?;
 ///
-///     cacache::rm::entry_sync("./my-cache", "my-key")?;
+///     cacache::remove_hash_sync("./my-cache", &sri)?;
 ///
 ///     // These fail:
-///     cacache::get::data_sync("./my-cache", "my-key")?;
-///     cacache::get::data_hash_sync("./my-cache", &sri)?;
+///     cacache::read_sync("./my-cache", "my-key")?;
+///     cacache::read_hash_sync("./my-cache", &sri)?;
 ///
 ///     // But this succeeds:
-///     cacache::get::entry_sync("./my-cache", "my-key")?;
+///     cacache::metadata_sync("./my-cache", "my-key")?;
 ///
 ///     Ok(())
 /// }
 /// ```
-pub fn content_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
+pub fn remove_hash_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
     rm::rm(cache.as_ref(), &sri).with_context(|| {
         format!(
             "Failed to remove content under {} in cache at {:?}",
@@ -194,19 +195,19 @@ pub fn content_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
 /// use std::io::Read;
 ///
 /// fn main() -> Result<()> {
-///     let sri = cacache::put::data_sync("./my-cache", "my-key", b"hello")?;
+///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello")?;
 ///
-///     cacache::rm::entry_sync("./my-cache", "my-key")?;
+///     cacache::clear_sync("./my-cache")?;
 ///
 ///     // These all fail:
-///     cacache::get::data_sync("./my-cache", "my-key")?;
-///     cacache::get::data_hash_sync("./my-cache", &sri)?;
-///     cacache::get::entry_sync("./my-cache", "my-key")?;
+///     cacache::read_sync("./my-cache", "my-key")?;
+///     cacache::read_hash_sync("./my-cache", &sri)?;
+///     cacache::metadata_sync("./my-cache", "my-key")?;
 ///
 ///     Ok(())
 /// }
 /// ```
-pub fn all_sync<P: AsRef<Path>>(cache: P) -> Result<()> {
+pub fn clear_sync<P: AsRef<Path>>(cache: P) -> Result<()> {
     for entry in cache.as_ref().read_dir()? {
         if let Ok(entry) = entry {
             fs::remove_dir_all(entry.path())?;
@@ -220,98 +221,98 @@ mod tests {
     use async_std::task;
 
     #[test]
-    fn entry() {
+    fn test_remove() {
         task::block_on(async {
             let tmp = tempfile::tempdir().unwrap();
             let dir = tmp.path().to_owned();
-            let sri = crate::put::data(&dir, "key", b"my-data").await.unwrap();
+            let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
 
-            crate::rm::entry(&dir, "key").await.unwrap();
+            crate::remove(&dir, "key").await.unwrap();
 
-            let entry = crate::get::entry(&dir, "key").await.unwrap();
+            let entry = crate::metadata(&dir, "key").await.unwrap();
             assert_eq!(entry, None);
 
-            let data_exists = crate::get::hash_exists(&dir, &sri).await;
+            let data_exists = crate::exists(&dir, &sri).await;
             assert_eq!(data_exists, true);
         });
     }
 
     #[test]
-    fn content() {
+    fn test_remove_data() {
         task::block_on(async {
             let tmp = tempfile::tempdir().unwrap();
             let dir = tmp.path().to_owned();
-            let sri = crate::put::data(&dir, "key", b"my-data").await.unwrap();
+            let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
 
-            crate::rm::content(&dir, &sri).await.unwrap();
+            crate::remove_hash(&dir, &sri).await.unwrap();
 
-            let entry = crate::get::entry(&dir, "key").await.unwrap();
+            let entry = crate::metadata(&dir, "key").await.unwrap();
             assert_eq!(entry.is_some(), true);
 
-            let data_exists = crate::get::hash_exists(&dir, &sri).await;
+            let data_exists = crate::exists(&dir, &sri).await;
             assert_eq!(data_exists, false);
         });
     }
 
     #[test]
-    fn all() {
+    fn test_clear() {
         task::block_on(async {
             let tmp = tempfile::tempdir().unwrap();
             let dir = tmp.path().to_owned();
-            let sri = crate::put::data(&dir, "key", b"my-data").await.unwrap();
+            let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
 
-            crate::rm::all(&dir).await.unwrap();
+            crate::clear(&dir).await.unwrap();
 
-            let entry = crate::get::entry(&dir, "key").await.unwrap();
+            let entry = crate::metadata(&dir, "key").await.unwrap();
             assert_eq!(entry.is_some(), false);
 
-            let data_exists = crate::get::hash_exists(&dir, &sri).await;
+            let data_exists = crate::exists(&dir, &sri).await;
             assert_eq!(data_exists, false);
         });
     }
 
     #[test]
-    fn entry_sync() {
+    fn test_remove_sync() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let sri = crate::put::data_sync(&dir, "key", b"my-data").unwrap();
+        let sri = crate::write_sync(&dir, "key", b"my-data").unwrap();
 
-        crate::rm::entry_sync(&dir, "key").unwrap();
+        crate::remove_sync(&dir, "key").unwrap();
 
-        let new_entry = crate::get::entry_sync(&dir, "key").unwrap();
+        let new_entry = crate::metadata_sync(&dir, "key").unwrap();
         assert_eq!(new_entry, None);
 
-        let data_exists = crate::get::hash_exists_sync(&dir, &sri);
+        let data_exists = crate::exists_sync(&dir, &sri);
         assert_eq!(data_exists, true);
     }
 
     #[test]
-    fn content_sync() {
+    fn test_remove_data_sync() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let sri = crate::put::data_sync(&dir, "key", b"my-data").unwrap();
+        let sri = crate::write_sync(&dir, "key", b"my-data").unwrap();
 
-        crate::rm::content_sync(&dir, &sri).unwrap();
+        crate::remove_hash_sync(&dir, &sri).unwrap();
 
-        let new_entry = crate::get::entry_sync(&dir, "key").unwrap();
-        assert_eq!(new_entry.is_some(), true);
+        let entry = crate::metadata_sync(&dir, "key").unwrap();
+        assert_eq!(entry.is_some(), true);
 
-        let data_exists = crate::get::hash_exists_sync(&dir, &sri);
+        let data_exists = crate::exists_sync(&dir, &sri);
         assert_eq!(data_exists, false);
     }
 
     #[test]
-    fn all_sync() {
+    fn test_clear_sync() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let sri = crate::put::data_sync(&dir, "key", b"my-data").unwrap();
+        let sri = crate::write_sync(&dir, "key", b"my-data").unwrap();
 
-        crate::rm::all_sync(&dir).unwrap();
+        crate::clear_sync(&dir).unwrap();
 
-        let new_entry = crate::get::entry_sync(&dir, "key").unwrap();
-        assert_eq!(new_entry, None);
+        let entry = crate::metadata_sync(&dir, "key").unwrap();
+        assert_eq!(entry, None);
 
-        let data_exists = crate::get::hash_exists_sync(&dir, &sri);
+        let data_exists = crate::exists_sync(&dir, &sri);
         assert_eq!(data_exists, false);
     }
 }

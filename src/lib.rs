@@ -2,6 +2,31 @@
 //! caches. It's really fast, really good at concurrency, and it will never
 //! give you corrupted data, even if cache files get corrupted or manipulated.
 //!
+//! ## API Layout
+//!
+//! The cacache API is organized roughly similar to `std::fs`; most of the
+//! toplevel functionality is available as free functions directly in the
+//! `cacache` module, with some additional functionality available through
+//! returned objects, as well as `WriteOpts`, which is analogous to
+//! `OpenOpts`, but is only able to write.
+//!
+//! One major difference is that the default APIs are all async functions, as
+//! opposed to `std::fs`, where they're all synchronous. Synchronous APIs in
+//! cacache are accessible through the `_sync` suffix.
+//!
+//! ### Suffixes
+//!
+//! You may notice various suffixes associated with otherwise familiar
+//! functions:
+//!
+//! * `_sync` - Most cacache APIs are asynchronous by default. Anything using
+//!   the `_sync` suffix behaves just like its unprefixed counterpart, except
+//!   the operation is synchronous.
+//! * `_hash` - Since cacache is a content-addressable cache, the `_hash`
+//!   suffix means you're interacting directly with content data, skipping the
+//!   index and its metadata. These functions use an `Integrity` to look up
+//!   data, instead of a string key.
+//!
 //! ## Examples
 //!
 //! Un-suffixed APIs are all async, using
@@ -15,10 +40,10 @@
 //! #[async_attributes::main]
 //! async fn main() -> Result<()> {
 //!   // Data goes in...
-//!   cacache::put::data("./my-cache", "key", b"hello").await?;
+//!   cacache::write("./my-cache", "key", b"hello").await?;
 //!
 //!   // ...data comes out!
-//!   let data = cacache::get::data("./my-cache", "key").await?;
+//!   let data = cacache::read("./my-cache", "key").await?;
 //!   assert_eq!(data, b"hello");
 //!
 //!   Ok(())
@@ -40,10 +65,10 @@
 //! #[async_attributes::main]
 //! async fn main() -> Result<()> {
 //!   // Data goes in...
-//!   let sri = cacache::put::data("./my-cache", "key", b"hello").await?;
+//!   let sri = cacache::write("./my-cache", "key", b"hello").await?;
 //!
 //!   // ...data gets looked up by `sri` ("Subresource Integrity").
-//!   let data = cacache::get::data_hash("./my-cache", &sri).await?;
+//!   let data = cacache::read_hash("./my-cache", &sri).await?;
 //!   assert_eq!(data, b"hello");
 //!
 //!   Ok(())
@@ -62,15 +87,15 @@
 //!
 //! #[async_attributes::main]
 //! async fn main() -> Result<()> {
-//!   let mut fd = cacache::put::PutOpts::new().open("./my-cache", "key").await?;
+//!   let mut fd = cacache::Writer::create("./my-cache", "key").await?;
 //!   for _ in 0..10 {
 //!     fd.write_all(b"very large data").await?;
 //!   }
-//!   // Data is only persisted to the cache after you do `fd.commit()`!
+//!   // Data is only committed to the cache after you do `fd.commit()`!
 //!   let sri = fd.commit().await?;
 //!   println!("integrity: {}", &sri);
 //!
-//!   let mut fd = cacache::get::open("./my-cache", "key").await?;
+//!   let mut fd = cacache::Reader::open("./my-cache", "key").await?;
 //!   let mut buf = String::new();
 //!   fd.read_to_string(&mut buf).await?;
 //!
@@ -85,13 +110,17 @@
 //!
 //! ### Sync API
 //!
-//! There are also sync APIs available if you don't want to use async/await:
+//! There are also sync APIs available if you don't want to use async/await.
+//! The synchronous APIs are generally faster for linear operations -- that
+//! is, doing one thing after another, as opposed to doing many things at
+//! once. If you're only reading and writing one thing at a time across your
+//! application, you probably want to use these instead.
 //!
 //! ```no_run
 //! use anyhow::Result;
 //! fn main() -> Result<()> {
-//!   cacache::put::data_sync("./my-cache", "key", b"my-data").unwrap();
-//!   let data = cacache::get::data_sync("./my-cache", "key").unwrap();
+//!   cacache::write_sync("./my-cache", "key", b"my-data").unwrap();
+//!   let data = cacache::read_sync("./my-cache", "key").unwrap();
 //!   assert_eq!(data, b"my-data");
 //!   Ok(())
 //! }
@@ -105,10 +134,15 @@ mod content;
 mod errors;
 mod index;
 
-pub mod get;
-pub mod ls;
-pub mod put;
-pub mod rm;
+mod get;
+mod ls;
+mod put;
+mod rm;
 
 pub use errors::Error;
-pub use index::Entry;
+pub use index::Metadata;
+
+pub use get::*;
+pub use ls::*;
+pub use put::*;
+pub use rm::*;
