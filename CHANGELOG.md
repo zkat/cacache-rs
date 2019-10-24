@@ -1,3 +1,17 @@
+<a name="5.0.0"></a>
+
+## 5.0.0 (2019-10-24)
+
+#### Breaking Changes
+
+- **api:** rewrite entire API to be like std::fs (#21) ([743476b2](https://github.com/zkat/cacache-rs/commit/743476b274eb07844b7b73137770df856cd7e4c4))
+- **license:** bump Parity license to 7.0.0-pre.3 ([0395b0fb](https://github.com/zkat/cacache-rs/commit/0395b0fbffc65004f2b099aee9075251c8354e06))
+
+#### Features
+
+- **api:** rewrite entire API to be like std::fs (#21) ([743476b2](https://github.com/zkat/cacache-rs/commit/743476b274eb07844b7b73137770df856cd7e4c4))
+- **license:** bump Parity license to 7.0.0-pre.3 ([0395b0fb](https://github.com/zkat/cacache-rs/commit/0395b0fbffc65004f2b099aee9075251c8354e06))
+
 <a name="4.0.0"></a>
 
 ## 4.0.0 (2019-10-21)
