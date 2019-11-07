@@ -6,8 +6,6 @@ use std::pin::Pin;
 use futures::prelude::*;
 
 use anyhow::{Context, Result};
-#[cfg(unix)]
-use nix::unistd::{Gid, Uid};
 use serde_json::Value;
 use ssri::{Algorithm, Integrity};
 
@@ -202,10 +200,6 @@ pub struct WriteOpts {
     pub(crate) size: Option<usize>,
     pub(crate) time: Option<u128>,
     pub(crate) metadata: Option<Value>,
-    #[cfg(unix)]
-    pub(crate) uid: Option<Uid>,
-    #[cfg(unix)]
-    pub(crate) gid: Option<Gid>,
 }
 
 impl WriteOpts {
@@ -283,15 +277,6 @@ impl WriteOpts {
     /// `put.commit()` will error.
     pub fn integrity(mut self, sri: Integrity) -> Self {
         self.sri = Some(sri);
-        self
-    }
-
-    /// Configures the uid and gid to write data as. Useful when dropping
-    /// privileges while in `sudo` mode.
-    #[cfg(unix)]
-    pub fn chown(mut self, uid: Option<Uid>, gid: Option<Gid>) -> Self {
-        self.uid = uid;
-        self.gid = gid;
         self
     }
 }

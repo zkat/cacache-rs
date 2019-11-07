@@ -6,14 +6,11 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
-use async_std::{fs as afs, task};
-#[cfg(unix)]
-use chownr;
+use async_std::fs as afs;
 use digest::Digest;
 use either::{Left, Right};
 use futures::io::AsyncWriteExt;
 use hex;
-use mkdirp;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha1::Sha1;
@@ -65,20 +62,7 @@ impl Hash for SerializableMetadata {
 
 pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
     let bucket = bucket_path(&cache, &key);
-    #[cfg(unix)]
-    {
-        if let Some(path) = mkdirp::mkdirp(bucket.parent().unwrap()).with_context(|| {
-            format!(
-                "Failed to create index bucket directory: {:?}",
-                bucket.parent().unwrap()
-            )
-        })? {
-            chownr::chownr(&path, opts.uid, opts.gid)
-                .with_context(|| format!("Failed to chown new index directories: {:?}", path))?;
-        }
-    }
-    #[cfg(windows)]
-    mkdirp::mkdirp(bucket.parent().unwrap()).with_context(|| {
+    fs::create_dir_all(bucket.parent().unwrap()).with_context(|| {
         format!(
             "Failed to create index bucket directory: {:?}",
             bucket.parent().unwrap()
@@ -103,9 +87,6 @@ pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
     buck.write_all(out.as_bytes())
         .with_context(|| format!("Failed to write to index bucket at {:?}", bucket))?;
     buck.flush()?;
-    #[cfg(unix)]
-    chownr::chownr(&bucket, opts.uid, opts.gid)
-        .with_context(|| format!("Failed to chown index bucket at {:?}", bucket))?;
     Ok(opts
         .sri
         .or_else(|| "sha1-deadbeef".parse::<Integrity>().ok())
@@ -114,30 +95,12 @@ pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
 
 pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) -> Result<Integrity> {
     let bucket = bucket_path(&cache, &key);
-    let tmpbucket = bucket.clone();
-    #[cfg(unix)]
-    let WriteOpts { uid, gid, .. } = opts;
-    task::spawn_blocking(move || {
-        let parent = tmpbucket.parent().unwrap();
-        #[cfg(unix)]
-        {
-            if let Some(path) = mkdirp::mkdirp(parent).with_context(|| {
-                format!("failed to create index bucket parent dir: {:?}", parent)
-            })? {
-                chownr::chownr(&path, uid, gid).with_context(|| {
-                    format!(
-                        "failed to change ownership for path {:?} to {:?}:{:?}",
-                        path, uid, gid
-                    )
-                })?;
-            }
-        }
-        #[cfg(windows)]
-        mkdirp::mkdirp(parent)
-            .with_context(|| format!("failed to create index bucket parent dir: {:?}", parent))?;
-        Ok::<(), anyhow::Error>(())
-    })
-    .await?;
+    afs::create_dir_all(bucket.parent().unwrap()).await.with_context(|| {
+        format!(
+            "Failed to create index bucket directory: {:?}",
+            bucket.parent().unwrap()
+        )
+    })?;
     let stringified = serde_json::to_string(&SerializableMetadata {
         key: key.to_owned(),
         integrity: opts.sri.clone().map(|x| x.to_string()),
@@ -159,9 +122,6 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) ->
         .await
         .with_context(|| format!("Failed to write to index bucket at {:?}", bucket))?;
     buck.flush().await?;
-    #[cfg(unix)]
-    chownr::chownr(&bucket, opts.uid, opts.gid)
-        .with_context(|| format!("Failed to chown index bucket at {:?}", bucket))?;
     Ok(opts
         .sri
         .or_else(|| "sha1-deadbeef".parse::<Integrity>().ok())
@@ -235,10 +195,6 @@ pub fn delete(cache: &Path, key: &str) -> Result<()> {
             sri: None,
             time: None,
             metadata: None,
-            #[cfg(unix)]
-            uid: None,
-            #[cfg(unix)]
-            gid: None,
         },
     )
     .map(|_| ())
@@ -254,10 +210,6 @@ pub async fn delete_async(cache: &Path, key: &str) -> Result<()> {
             sri: None,
             time: None,
             metadata: None,
-            #[cfg(unix)]
-            uid: None,
-            #[cfg(unix)]
-            gid: None,
         },
     )
     .map(|_| ())
@@ -423,7 +375,7 @@ mod tests {
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
         let bucket = bucket_path(&dir, "hello");
-        mkdirp::mkdirp(bucket.parent().unwrap()).unwrap();
+        fs::create_dir_all(bucket.parent().unwrap()).unwrap();
         fs::write(bucket, MOCK_ENTRY).unwrap();
         let entry = find(&dir, "hello").unwrap().unwrap();
         assert_eq!(
