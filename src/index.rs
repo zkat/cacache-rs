@@ -7,9 +7,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use async_std::fs as afs;
+use async_std::io::BufReader;
 use digest::Digest;
 use either::{Left, Right};
-use futures::io::AsyncWriteExt;
+use futures::io::{AsyncBufReadExt, AsyncWriteExt};
+use futures::stream::StreamExt;
 use hex;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -95,12 +97,14 @@ pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
 
 pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) -> Result<Integrity> {
     let bucket = bucket_path(&cache, &key);
-    afs::create_dir_all(bucket.parent().unwrap()).await.with_context(|| {
-        format!(
-            "Failed to create index bucket directory: {:?}",
-            bucket.parent().unwrap()
-        )
-    })?;
+    afs::create_dir_all(bucket.parent().unwrap())
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to create index bucket directory: {:?}",
+                bucket.parent().unwrap()
+            )
+        })?;
     let stringified = serde_json::to_string(&SerializableMetadata {
         key: key.to_owned(),
         integrity: opts.sri.clone().map(|x| x.to_string()),
@@ -304,9 +308,6 @@ fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableMetadata>> {
 }
 
 async fn bucket_entries_async(bucket: &Path) -> Result<Vec<SerializableMetadata>> {
-    use async_std::io::BufReader;
-    use futures::io::AsyncBufReadExt;
-    use futures::stream::StreamExt;
     let file_result = afs::File::open(bucket).await;
     let file;
     if let Err(err) = file_result {
