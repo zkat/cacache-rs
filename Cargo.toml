@@ -18,24 +18,24 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 ssri = "5.0.0"
-hex = "0.3.2"
-tempfile = "3.0.8"
+hex = "0.4.0"
+tempfile = "3.1.0"
 sha-1 = "0.8.1"
 sha2 = "0.8.0"
-digest = "0.8.0"
-serde_json = "1.0.39"
-serde = "1.0.92"
-serde_derive = "1.0.92"
-walkdir = "2.2.7"
-either = "1.5.2"
-futures-preview = "0.3.0-alpha.18"
-async-std = { version = "0.99.10", features = ["unstable"]}
-anyhow = "1.0.16"
-thiserror = "1.0.3"
+digest = "0.8.1"
+serde_json = "1.0.41"
+serde = "1.0.102"
+serde_derive = "1.0.102"
+walkdir = "2.2.9"
+either = "1.5.3"
+async-std = { version = "1.0.1", features = ["unstable"] }
+anyhow = "1.0.19"
+thiserror = "1.0.5"
+futures = "0.3.1"
 
 [dev-dependencies]
-async-attributes = "1.0.0"
-criterion = "0.2.11"
+async-attributes = "1.1.1"
+criterion = "0.3.0"
 
 [[bench]]
 name = "benchmarks"
