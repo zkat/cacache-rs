@@ -1,3 +1,13 @@
+<a name="6.0.0"></a>
+
+## 6.0.0 (2019-11-12)
+
+#### Breaking Changes
+
+- **chown:** stop changing owner/group on unix platforms ([d5bb0dff](https://github.com/zkat/cacache-rs/commit/d5bb0dffb623d0a61d7680829ca36ce10ceb2f53))
+- **deps:** upgrade to latest async-std and regular futures crate ([c44b781a](https://github.com/zkat/cacache-rs/commit/c44b781a34bb4f95667ccb784671060ee3c0bcca))
+- **license:** upgrade to Parity 7.0 release ([b54ec598](https://github.com/zkat/cacache-rs/commit/b54ec598cb11272edd685f4db45f6ff8bbeb9747))
+
 <a name="5.0.0"></a>
 
 ## 5.0.0 (2019-10-24)
