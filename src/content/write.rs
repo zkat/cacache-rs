@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Mutex;
 
-use anyhow::Result;
 use async_std::fs as afs;
 use async_std::future::Future;
 use async_std::task::{self, Context, JoinHandle, Poll};
@@ -14,6 +13,7 @@ use ssri::{Algorithm, Integrity, IntegrityOpts};
 use tempfile::NamedTempFile;
 
 use crate::content::path;
+use crate::errors::{Internal, Result};
 
 pub struct Writer {
     cache: PathBuf,
@@ -26,11 +26,14 @@ impl Writer {
         let cache_path = cache.to_path_buf();
         let mut tmp_path = cache_path.clone();
         tmp_path.push("tmp");
-        DirBuilder::new().recursive(true).create(&tmp_path)?;
+        DirBuilder::new()
+            .recursive(true)
+            .create(&tmp_path)
+            .to_internal()?;
         Ok(Writer {
             cache: cache_path,
             builder: IntegrityOpts::new().algorithm(algo),
-            tmpfile: NamedTempFile::new_in(tmp_path)?,
+            tmpfile: NamedTempFile::new_in(tmp_path).to_internal()?,
         })
     }
 
@@ -40,8 +43,9 @@ impl Writer {
         DirBuilder::new()
             .recursive(true)
             // Safe unwrap. cpath always has multiple segments
-            .create(cpath.parent().unwrap())?;
-        self.tmpfile.persist(cpath)?;
+            .create(cpath.parent().unwrap())
+            .to_internal()?;
+        self.tmpfile.persist(cpath).to_internal()?;
         Ok(sri)
     }
 }
@@ -87,11 +91,14 @@ impl AsyncWriter {
         afs::DirBuilder::new()
             .recursive(true)
             .create(&tmp_path)
-            .await?;
+            .await
+            .to_internal()?;
         Ok(AsyncWriter(Mutex::new(State::Idle(Some(Inner {
             cache: cache_path,
             builder: IntegrityOpts::new().algorithm(algo),
-            tmpfile: task::spawn_blocking(|| NamedTempFile::new_in(tmp_path)).await?,
+            tmpfile: task::spawn_blocking(|| NamedTempFile::new_in(tmp_path))
+                .await
+                .to_internal()?,
             buf: vec![],
             last_op: None,
         })))))
@@ -101,7 +108,7 @@ impl AsyncWriter {
         // NOTE: How do I even get access to `inner` safely???
         // let inner = ???;
         // Blocking, but should be a very fast op.
-        futures::future::poll_fn(|cx| {
+        Ok(futures::future::poll_fn(|cx| {
             let state = &mut *self.0.lock().unwrap();
 
             loop {
@@ -121,12 +128,18 @@ impl AsyncWriter {
                                     // Safe unwrap. cpath always has multiple segments
                                     .create(cpath.parent().unwrap())
                                     .await
-                                    .map_err(anyhow::Error::new);
+                                    .with_context(|| {
+                                        format!(
+                                            "building directory {} failed",
+                                            cpath.parent().unwrap().display()
+                                        )
+                                    });
                                 if res.is_err() {
                                     let _ = s.send(res.map(|_| sri));
                                 } else {
-                                    let res = tmpfile.persist(cpath);
-                                    let res = res.map_err(anyhow::Error::new);
+                                    let res = tmpfile.persist(cpath).with_context(|| {
+                                        String::from("persisting tempfile failed")
+                                    });
                                     let _ = s.send(res.map(|_| sri));
                                 }
                                 State::Idle(None)
@@ -141,8 +154,10 @@ impl AsyncWriter {
             }
         })
         .map(|opt| opt.ok_or_else(|| io_error("file closed")))
-        .await?
-        .await?
+        .await
+        .to_internal()?
+        .await
+        .to_internal()??)
     }
 }
 

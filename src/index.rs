@@ -5,7 +5,6 @@ use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anyhow::{Context, Result};
 use async_std::fs as afs;
 use async_std::io::BufReader;
 use digest::Digest;
@@ -20,6 +19,7 @@ use sha2::Sha256;
 use ssri::Integrity;
 use walkdir::WalkDir;
 
+use crate::errors::{Internal, InternalResult, Result};
 use crate::put::WriteOpts;
 
 const INDEX_VERSION: &str = "5";
@@ -88,7 +88,8 @@ pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
     let out = format!("\n{}\t{}", hash_entry(&stringified), stringified);
     buck.write_all(out.as_bytes())
         .with_context(|| format!("Failed to write to index bucket at {:?}", bucket))?;
-    buck.flush()?;
+    buck.flush()
+        .with_context(|| format!("Failed to flush bucket at {:?}", bucket))?;
     Ok(opts
         .sri
         .or_else(|| "sha1-deadbeef".parse::<Integrity>().ok())
@@ -125,7 +126,9 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) ->
     buck.write_all(out.as_bytes())
         .await
         .with_context(|| format!("Failed to write to index bucket at {:?}", bucket))?;
-    buck.flush().await?;
+    buck.flush()
+        .await
+        .with_context(|| format!("Failed to flush bucket at {:?}", bucket))?;
     Ok(opts
         .sri
         .or_else(|| "sha1-deadbeef".parse::<Integrity>().ok())
@@ -223,7 +226,8 @@ pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Metadata>> {
     WalkDir::new(cache.join(format!("index-v{}", INDEX_VERSION)))
         .into_iter()
         .map(|bucket| {
-            let bucket = bucket?;
+            let bucket = bucket.to_internal()?;
+
             if bucket.file_type().is_dir() {
                 return Ok(Vec::new());
             }
@@ -281,13 +285,13 @@ fn now() -> u128 {
         .as_millis()
 }
 
-fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableMetadata>> {
+fn bucket_entries(bucket: &Path) -> InternalResult<Vec<SerializableMetadata>> {
     use std::io::{BufRead, BufReader};
     fs::File::open(bucket)
         .map(|file| {
             BufReader::new(file)
                 .lines()
-                .filter_map(Result::ok)
+                .filter_map(std::result::Result::ok)
                 .filter_map(|entry| {
                     let entry_str = match entry.split('\t').collect::<Vec<&str>>()[..] {
                         [hash, entry_str] if hash_entry(entry_str) == hash => entry_str,
@@ -302,19 +306,19 @@ fn bucket_entries(bucket: &Path) -> Result<Vec<SerializableMetadata>> {
             if err.kind() == ErrorKind::NotFound {
                 Ok(Vec::new())
             } else {
-                Err(err)?
+                Err(err).to_internal()?
             }
         })
 }
 
-async fn bucket_entries_async(bucket: &Path) -> Result<Vec<SerializableMetadata>> {
+async fn bucket_entries_async(bucket: &Path) -> InternalResult<Vec<SerializableMetadata>> {
     let file_result = afs::File::open(bucket).await;
     let file;
     if let Err(err) = file_result {
         if err.kind() == ErrorKind::NotFound {
             return Ok(Vec::new());
         }
-        return Err(err.into());
+        return Err(err).to_internal()?;
     } else {
         file = file_result.unwrap();
     }

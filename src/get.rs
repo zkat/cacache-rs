@@ -5,11 +5,10 @@ use std::task::{Context as TaskContext, Poll};
 
 use futures::prelude::*;
 
-use anyhow::{Context, Result};
 use ssri::{Algorithm, Integrity};
 
 use crate::content::read;
-use crate::errors::Error;
+use crate::errors::{Error, Result};
 use crate::index::{self, Metadata};
 
 // ---------
@@ -47,22 +46,19 @@ impl Reader {
     /// ```no_run
     /// use async_std::prelude::*;
     /// use async_attributes;
-    /// use anyhow::Result;
     ///
     /// #[async_attributes::main]
-    /// async fn main() -> Result<()> {
+    /// async fn main() -> cacache::Result<()> {
     ///     let mut fd = cacache::Reader::open("./my-cache", "my-key").await?;
     ///     let mut str = String::new();
-    ///     fd.read_to_string(&mut str).await?;
+    ///     fd.read_to_string(&mut str).await.expect("Failed to read to string");
     ///     // Remember to check that the data you got was correct!
     ///     fd.check()?;
     ///     Ok(())
     /// }
     /// ```
     pub fn check(self) -> Result<Algorithm> {
-        self.reader
-            .check()
-            .context("Cache read data verification check failed.")
+        self.reader.check()
     }
     /// Opens a new file handle into the cache, looking it up in the index using
     /// `key`.
@@ -71,13 +67,12 @@ impl Reader {
     /// ```no_run
     /// use async_std::prelude::*;
     /// use async_attributes;
-    /// use anyhow::Result;
     ///
     /// #[async_attributes::main]
-    /// async fn main() -> Result<()> {
+    /// async fn main() -> cacache::Result<()> {
     ///     let mut fd = cacache::Reader::open("./my-cache", "my-key").await?;
     ///     let mut str = String::new();
-    ///     fd.read_to_string(&mut str).await?;
+    ///     fd.read_to_string(&mut str).await.expect("Failed to read to string");
     ///     // Remember to check that the data you got was correct!
     ///     fd.check()?;
     ///     Ok(())
@@ -104,14 +99,13 @@ impl Reader {
     /// ```no_run
     /// use async_std::prelude::*;
     /// use async_attributes;
-    /// use anyhow::Result;
     ///
     /// #[async_attributes::main]
-    /// async fn main() -> Result<()> {
+    /// async fn main() -> cacache::Result<()> {
     ///     let sri = cacache::write("./my-cache", "key", b"hello world").await?;
     ///     let mut fd = cacache::Reader::open_hash("./my-cache", sri).await?;
     ///     let mut str = String::new();
-    ///     fd.read_to_string(&mut str).await?;
+    ///     fd.read_to_string(&mut str).await.expect("Failed to read to string");
     ///     // Remember to check that the data you got was correct!
     ///     fd.check()?;
     ///     Ok(())
@@ -134,10 +128,9 @@ impl Reader {
 /// ```no_run
 /// use async_std::prelude::*;
 /// use async_attributes;
-/// use anyhow::Result;
 ///
 /// #[async_attributes::main]
-/// async fn main() -> Result<()> {
+/// async fn main() -> cacache::Result<()> {
 ///     let data: Vec<u8> = cacache::read("./my-cache", "my-key").await?;
 ///     Ok(())
 /// }
@@ -157,36 +150,6 @@ where
     }
 }
 
-/// Reads the entire contents of a cache file into a string, looking the
-/// data up by key.
-///
-/// ## Example
-/// ```no_run
-/// use async_std::prelude::*;
-/// use async_attributes;
-/// use anyhow::Result;
-///
-/// #[async_attributes::main]
-/// async fn main() -> Result<()> {
-///     let str: String = cacache::read_to_string("./my-cache", "my-key").await?;
-///     Ok(())
-/// }
-/// ```
-pub async fn read_to_string<P, K>(cache: P, key: K) -> Result<String>
-where
-    P: AsRef<Path>,
-    K: AsRef<str>,
-{
-    if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
-        read_hash_to_string(cache, &entry.integrity).await
-    } else {
-        Err(Error::EntryNotFound(
-            cache.as_ref().to_path_buf(),
-            key.as_ref().into(),
-        ))?
-    }
-}
-
 /// Reads the entire contents of a cache file into a bytes vector, looking the
 /// data up by its content address.
 ///
@@ -194,10 +157,9 @@ where
 /// ```no_run
 /// use async_std::prelude::*;
 /// use async_attributes;
-/// use anyhow::Result;
 ///
 /// #[async_attributes::main]
-/// async fn main() -> Result<()> {
+/// async fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
 ///     let data: Vec<u8> = cacache::read_hash("./my-cache", &sri).await?;
 ///     Ok(())
@@ -210,31 +172,6 @@ where
     Ok(read::read_async(cache.as_ref(), sri).await?)
 }
 
-/// Reads the entire contents of a cache file into a string, looking the
-/// data up by its content address.
-///
-/// ## Example
-/// ```no_run
-/// use async_std::prelude::*;
-/// use async_attributes;
-/// use anyhow::Result;
-///
-/// #[async_attributes::main]
-/// async fn main() -> Result<()> {
-///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
-///     let str: String = cacache::read_hash_to_string("./my-cache", &sri).await?;
-///     Ok(())
-/// }
-/// ```
-pub async fn read_hash_to_string<P>(cache: P, sri: &Integrity) -> Result<String>
-where
-    P: AsRef<Path>,
-{
-    Ok(String::from_utf8(
-        read::read_async(cache.as_ref(), sri).await?,
-    )?)
-}
-
 /// Copies cache data to a specified location. Returns the number of bytes
 /// copied.
 ///
@@ -242,10 +179,9 @@ where
 /// ```no_run
 /// use async_std::prelude::*;
 /// use async_attributes;
-/// use anyhow::Result;
 ///
 /// #[async_attributes::main]
-/// async fn main() -> Result<()> {
+/// async fn main() -> cacache::Result<()> {
 ///     cacache::copy("./my-cache", "my-key", "./data.txt").await?;
 ///     Ok(())
 /// }
@@ -273,10 +209,9 @@ where
 /// ```no_run
 /// use async_std::prelude::*;
 /// use async_attributes;
-/// use anyhow::Result;
 ///
 /// #[async_attributes::main]
-/// async fn main() -> Result<()> {
+/// async fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write("./my-cache", "my-key", b"hello world").await?;
 ///     cacache::copy_hash("./my-cache", &sri, "./data.txt").await?;
 ///     Ok(())
@@ -336,22 +271,19 @@ impl SyncReader {
     ///
     /// ## Example
     /// ```no_run
-    /// use anyhow::Result;
     /// use std::io::Read;
     ///
-    /// fn main() -> Result<()> {
+    /// fn main() -> cacache::Result<()> {
     ///     let mut fd = cacache::SyncReader::open("./my-cache", "my-key")?;
     ///     let mut str = String::new();
-    ///     fd.read_to_string(&mut str)?;
+    ///     fd.read_to_string(&mut str).expect("Failed to read to string");
     ///     // Remember to check that the data you got was correct!
     ///     fd.check()?;
     ///     Ok(())
     /// }
     /// ```
     pub fn check(self) -> Result<Algorithm> {
-        self.reader
-            .check()
-            .context("Cache read data verification check failed.")
+        self.reader.check()
     }
 
     /// Opens a new synchronous file handle into the cache, looking it up in the
@@ -359,13 +291,12 @@ impl SyncReader {
     ///
     /// ## Example
     /// ```no_run
-    /// use anyhow::Result;
     /// use std::io::Read;
     ///
-    /// fn main() -> Result<()> {
+    /// fn main() -> cacache::Result<()> {
     ///     let mut fd = cacache::SyncReader::open("./my-cache", "my-key")?;
     ///     let mut str = String::new();
-    ///     fd.read_to_string(&mut str)?;
+    ///     fd.read_to_string(&mut str).expect("Failed to parse string");
     ///     // Remember to check that the data you got was correct!
     ///     fd.check()?;
     ///     Ok(())
@@ -390,14 +321,13 @@ impl SyncReader {
     ///
     /// ## Example
     /// ```no_run
-    /// use anyhow::Result;
     /// use std::io::Read;
     ///
-    /// fn main() -> Result<()> {
+    /// fn main() -> cacache::Result<()> {
     ///     let sri = cacache::write_sync("./my-cache", "key", b"hello world")?;
     ///     let mut fd = cacache::SyncReader::open_hash("./my-cache", sri)?;
     ///     let mut str = String::new();
-    ///     fd.read_to_string(&mut str)?;
+    ///     fd.read_to_string(&mut str).expect("Failed to read to string");
     ///     // Remember to check that the data you got was correct!
     ///     fd.check()?;
     ///     Ok(())
@@ -418,10 +348,9 @@ impl SyncReader {
 ///
 /// ## Example
 /// ```no_run
-/// use anyhow::Result;
 /// use std::io::Read;
 ///
-/// fn main() -> Result<()> {
+/// fn main() -> cacache::Result<()> {
 ///     let data = cacache::read_sync("./my-cache", "my-key")?;
 ///     Ok(())
 /// }
@@ -441,42 +370,14 @@ where
     }
 }
 
-/// Reads the entire contents of a cache file synchronously into a string,
-/// looking the data up by key.
-///
-/// ## Example
-/// ```no_run
-/// use anyhow::Result;
-/// use std::io::Read;
-///
-/// fn main() -> Result<()> {
-///     let str: String = cacache::read_to_string_sync("./my-cache", "my-key")?;
-///     Ok(())
-/// }
-/// ```
-pub fn read_to_string_sync<P, K>(cache: P, key: K) -> Result<String>
-where
-    P: AsRef<Path>,
-    K: AsRef<str>,
-{
-    if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
-        read_hash_to_string_sync(cache, &entry.integrity)
-    } else {
-        Err(Error::EntryNotFound(
-            cache.as_ref().to_path_buf(),
-            key.as_ref().into(),
-        ))?
-    }
-}
 /// Reads the entire contents of a cache file synchronously into a bytes
 /// vector, looking the data up by its content address.
 ///
 /// ## Example
 /// ```no_run
-/// use anyhow::Result;
 /// use std::io::Read;
 ///
-/// fn main() -> Result<()> {
+/// fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello")?;
 ///     let data = cacache::read_hash_sync("./my-cache", &sri)?;
 ///     Ok(())
@@ -489,36 +390,14 @@ where
     Ok(read::read(cache.as_ref(), sri)?)
 }
 
-/// Reads the entire contents of a cache file synchronously into a string,
-/// looking the data up by its content address.
-///
-/// ## Example
-/// ```no_run
-/// use anyhow::Result;
-/// use std::io::Read;
-///
-/// fn main() -> Result<()> {
-///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello")?;
-///     let data = cacache::read_hash_sync("./my-cache", &sri)?;
-///     Ok(())
-/// }
-/// ```
-pub fn read_hash_to_string_sync<P>(cache: P, sri: &Integrity) -> Result<String>
-where
-    P: AsRef<Path>,
-{
-    Ok(String::from_utf8(read::read(cache.as_ref(), sri)?)?)
-}
-
 /// Copies a cache entry by key to a specified location. Returns the number of
 /// bytes copied.
 ///
 /// ## Example
 /// ```no_run
-/// use anyhow::Result;
 /// use std::io::Read;
 ///
-/// fn main() -> Result<()> {
+/// fn main() -> cacache::Result<()> {
 ///     cacache::copy_sync("./my-cache", "my-key", "./my-hello.txt")?;
 ///     Ok(())
 /// }
@@ -544,10 +423,9 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// use anyhow::Result;
 /// use std::io::Read;
 ///
-/// fn main() -> Result<()> {
+/// fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello")?;
 ///     cacache::copy_hash_sync("./my-cache", &sri, "./my-hello.txt")?;
 ///     Ok(())
@@ -652,16 +530,6 @@ mod tests {
     }
 
     #[async_attributes::test]
-    async fn test_read_to_string() {
-        let tmp = tempfile::tempdir().unwrap();
-        let dir = tmp.path().to_owned();
-        crate::write(&dir, "my-key", "hello world").await.unwrap();
-
-        let data = crate::read_to_string(&dir, "my-key").await.unwrap();
-        assert_eq!(data, "hello world");
-    }
-
-    #[async_attributes::test]
     async fn test_read_hash() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
@@ -669,16 +537,6 @@ mod tests {
 
         let data = crate::read_hash(&dir, &sri).await.unwrap();
         assert_eq!(data, b"hello world");
-    }
-
-    #[async_attributes::test]
-    async fn test_read_hash_to_string() {
-        let tmp = tempfile::tempdir().unwrap();
-        let dir = tmp.path().to_owned();
-        let sri = crate::write(&dir, "my-key", "hello world").await.unwrap();
-
-        let data = crate::read_hash_to_string(&dir, &sri).await.unwrap();
-        assert_eq!(data, "hello world");
     }
 
     #[test]
@@ -692,16 +550,6 @@ mod tests {
     }
 
     #[test]
-    fn test_read_to_string_sync() {
-        let tmp = tempfile::tempdir().unwrap();
-        let dir = tmp.path().to_owned();
-        crate::write_sync(&dir, "my-key", "hello world").unwrap();
-
-        let data = crate::read_to_string_sync(&dir, "my-key").unwrap();
-        assert_eq!(data, "hello world");
-    }
-
-    #[test]
     fn test_read_hash_sync() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
@@ -709,16 +557,6 @@ mod tests {
 
         let data = crate::read_hash_sync(&dir, &sri).unwrap();
         assert_eq!(data, b"hello world");
-    }
-
-    #[test]
-    fn test_read_hash_to_string_sync() {
-        let tmp = tempfile::tempdir().unwrap();
-        let dir = tmp.path().to_owned();
-        let sri = crate::write_sync(&dir, "my-key", "hello world").unwrap();
-
-        let data = crate::read_hash_to_string_sync(&dir, &sri).unwrap();
-        assert_eq!(data, "hello world");
     }
 
     #[async_attributes::test]
