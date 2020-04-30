@@ -1,3 +1,17 @@
+<a name="7.0.0"></a>
+
+## 7.0.0 (2020-04-30)
+
+This release is mostly a major overhaul of the external error API, switching out of `anyhow` in favor of more bespoke error handling that works nicer in a library.
+
+#### Breaking Changes
+
+- **errors:** remove anyhow and use custom error types (#24) ([bb815f5f](https://github.com/zkat/cacache-rs/commit/bb815f5f22ea932814b8b3e120fd6cac24831d01), breaks [#](https://github.com/zkat/cacache-rs/issues/))
+
+#### Bug Fixes
+
+- **list_sync:** make sure the public interface allows using the Item type (#25) ([88a76189](https://github.com/zkat/cacache-rs/commit/88a76189fce954949ff3026b96158f700f5e2325))
+
 <a name="6.0.0"></a>
 
 ## 6.0.0 (2019-11-12)
