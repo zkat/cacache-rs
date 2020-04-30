@@ -35,10 +35,9 @@
 //!
 //! ```no_run
 //! use async_attributes;
-//! use anyhow::Result;
 //!
 //! #[async_attributes::main]
-//! async fn main() -> Result<()> {
+//! async fn main() -> cacache::Result<()> {
 //!   // Data goes in...
 //!   cacache::write("./my-cache", "key", b"hello").await?;
 //!
@@ -60,10 +59,9 @@
 //!
 //! ```no_run
 //! use async_attributes;
-//! use anyhow::Result;
 //!
 //! #[async_attributes::main]
-//! async fn main() -> Result<()> {
+//! async fn main() -> cacache::Result<()> {
 //!   // Data goes in...
 //!   let sri = cacache::write("./my-cache", "key", b"hello").await?;
 //!
@@ -81,15 +79,14 @@
 //! an API reminiscent of `std::fs::OpenOptions`:
 //!
 //! ```no_run
-//! use anyhow::Result;
 //! use async_attributes;
 //! use async_std::prelude::*;
 //!
 //! #[async_attributes::main]
-//! async fn main() -> Result<()> {
+//! async fn main() -> cacache::Result<()> {
 //!   let mut fd = cacache::Writer::create("./my-cache", "key").await?;
 //!   for _ in 0..10 {
-//!     fd.write_all(b"very large data").await?;
+//!     fd.write_all(b"very large data").await.expect("Failed to write to cache");
 //!   }
 //!   // Data is only committed to the cache after you do `fd.commit()`!
 //!   let sri = fd.commit().await?;
@@ -97,7 +94,7 @@
 //!
 //!   let mut fd = cacache::Reader::open("./my-cache", "key").await?;
 //!   let mut buf = String::new();
-//!   fd.read_to_string(&mut buf).await?;
+//!   fd.read_to_string(&mut buf).await.expect("Failed to read to string");
 //!
 //!   // Make sure to call `.check()` when you're done! It makes sure that what
 //!   // you just read is actually valid. `cacache` always verifies the data
@@ -117,8 +114,7 @@
 //! application, you probably want to use these instead.
 //!
 //! ```no_run
-//! use anyhow::Result;
-//! fn main() -> Result<()> {
+//! fn main() -> cacache::Result<()> {
 //!   cacache::write_sync("./my-cache", "key", b"my-data").unwrap();
 //!   let data = cacache::read_sync("./my-cache", "key").unwrap();
 //!   assert_eq!(data, b"my-data");
@@ -139,7 +135,7 @@ mod ls;
 mod put;
 mod rm;
 
-pub use errors::Error;
+pub use errors::{Error, Result};
 pub use index::Metadata;
 
 pub use get::*;

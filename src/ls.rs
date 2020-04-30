@@ -1,7 +1,7 @@
 //! Functions for iterating over the cache.
-use anyhow::Result;
 use std::path::Path;
 
+use crate::errors::Result;
 use crate::index;
 
 /// Returns a synchronous iterator that lists all cache index entries.

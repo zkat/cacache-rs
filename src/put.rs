@@ -5,12 +5,11 @@ use std::pin::Pin;
 
 use futures::prelude::*;
 
-use anyhow::{Context, Result};
 use serde_json::Value;
 use ssri::{Algorithm, Integrity};
 
 use crate::content::write;
-use crate::errors::Error;
+use crate::errors::{Error, Internal, Result};
 use crate::index;
 
 use std::task::{Context as TaskContext, Poll};
@@ -20,10 +19,9 @@ use std::task::{Context as TaskContext, Poll};
 /// ## Example
 /// ```no_run
 /// use async_attributes;
-/// use anyhow::Result;
 ///
 /// #[async_attributes::main]
-/// async fn main() -> Result<()> {
+/// async fn main() -> cacache::Result<()> {
 ///     cacache::write("./my-cache", "my-key", b"hello").await?;
 ///     Ok(())
 /// }
@@ -42,13 +40,7 @@ where
             cache.as_ref()
         )
     })?;
-    writer.commit().await.with_context(|| {
-        format!(
-            "Failed to write to commit data for key {} for cache at {:?}",
-            key.as_ref(),
-            cache.as_ref()
-        )
-    })
+    writer.commit().await
 }
 
 /// A reference to an open file writing to the cache.
@@ -85,12 +77,11 @@ impl Writer {
     /// ```no_run
     /// use async_attributes;
     /// use async_std::prelude::*;
-    /// use anyhow::Result;
     ///
     /// #[async_attributes::main]
-    /// async fn main() -> Result<()> {
+    /// async fn main() -> cacache::Result<()> {
     ///     let mut fd = cacache::Writer::create("./my-cache", "my-key").await?;
-    ///     fd.write_all(b"hello world").await?;
+    ///     fd.write_all(b"hello world").await.expect("Failed to write to cache");
     ///     // Data is not saved into the cache until you commit it.
     ///     fd.commit().await?;
     ///     Ok(())
@@ -105,13 +96,6 @@ impl Writer {
             .algorithm(Algorithm::Sha256)
             .open(cache.as_ref(), key.as_ref())
             .await
-            .with_context(|| {
-                format!(
-                    "Failed to open a write handle for key {} for cache at {:?}",
-                    key.as_ref(),
-                    cache.as_ref()
-                )
-            })
     }
 
     /// Closes the Writer handle and writes content and index entries. Also
@@ -121,39 +105,20 @@ impl Writer {
     pub async fn commit(mut self) -> Result<Integrity> {
         let key = self.key;
         let cache = self.cache;
-        let writer_sri = self.writer.close().await.with_context(|| {
-            format!(
-                "Failed to properly close save file data for key {} in cache at {:?}",
-                key, cache
-            )
-        })?;
+        let writer_sri = self.writer.close().await?;
         if let Some(sri) = &self.opts.sri {
             if sri.matches(&writer_sri).is_none() {
-                return Err(Error::IntegrityError(sri.clone(), writer_sri)).with_context(|| {
-                    format!(
-                        "Failed to verify data integrity while inserting {} into cache at {:?}",
-                        key, cache
-                    )
-                })?;
+                return Err(ssri::Error::IntegrityCheckError(sri.clone(), writer_sri))?;
             }
         } else {
             self.opts.sri = Some(writer_sri);
         }
         if let Some(size) = self.opts.size {
             if size != self.written {
-                return Err(Error::SizeError(size, self.written)).with_context(|| {
-                    format!("A size was passed in but the value inserted into {} could not be verified for cache at {:?}", key, cache)
-                })?;
+                return Err(Error::SizeError(size, self.written));
             }
         }
-        index::insert_async(&cache, &key, self.opts)
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to write index entry for {} in cache at {:?}",
-                    key, cache
-                )
-            })
+        index::insert_async(&cache, &key, self.opts).await
     }
 }
 
@@ -161,10 +126,9 @@ impl Writer {
 ///
 /// ## Example
 /// ```no_run
-/// use anyhow::Result;
 /// use std::io::Read;
 ///
-/// fn main() -> Result<()> {
+/// fn main() -> cacache::Result<()> {
 ///     let data = cacache::write_sync("./my-cache", "my-key", b"hello")?;
 ///     Ok(())
 /// }
@@ -183,13 +147,7 @@ where
             cache.as_ref()
         )
     })?;
-    writer.commit().with_context(|| {
-        format!(
-            "Failed to write to commit data for key {} for cache at {:?}",
-            key.as_ref(),
-            cache.as_ref()
-        )
-    })
+    writer.commit()
 }
 
 /// Builder for options and flags for opening a new cache file to write data into.
@@ -304,12 +262,11 @@ impl SyncWriter {
     ///
     /// ## Example
     /// ```no_run
-    /// use anyhow::Result;
     /// use std::io::prelude::*;
     ///
-    /// fn main() -> Result<()> {
+    /// fn main() -> cacache::Result<()> {
     ///     let mut fd = cacache::SyncWriter::create("./my-cache", "my-key")?;
-    ///     fd.write_all(b"hello world")?;
+    ///     fd.write_all(b"hello world").expect("Failed to write to cache");
     ///     // Data is not saved into the cache until you commit it.
     ///     fd.commit()?;
     ///     Ok(())
@@ -323,13 +280,6 @@ impl SyncWriter {
         WriteOpts::new()
             .algorithm(Algorithm::Sha256)
             .open_sync(cache.as_ref(), key.as_ref())
-            .with_context(|| {
-                format!(
-                    "Failed to open a write handle for key {} for cache at {:?}",
-                    key.as_ref(),
-                    cache.as_ref()
-                )
-            })
     }
 
     /// Closes the Writer handle and writes content and index entries. Also
@@ -348,29 +298,17 @@ impl SyncWriter {
         if let Some(sri) = &self.opts.sri {
             // TODO - ssri should have a .matches method
             if sri.matches(&writer_sri).is_none() {
-                return Err(Error::IntegrityError(sri.clone(), writer_sri)).with_context(|| {
-                    format!(
-                        "Failed to verify data integrity while inserting {} into cache at {:?}",
-                        key, cache
-                    )
-                })?;
+                return Err(ssri::Error::IntegrityCheckError(sri.clone(), writer_sri))?;
             }
         } else {
             self.opts.sri = Some(writer_sri);
         }
         if let Some(size) = self.opts.size {
             if size != self.written {
-                return Err(Error::SizeError(size, self.written)).with_context(|| {
-                    format!("A size was passed in but the value inserted into {} could not be verified for cache at {:?}", key, cache)
-                })?;
+                return Err(Error::SizeError(size, self.written))?;
             }
         }
-        index::insert(&cache, &key, self.opts).with_context(|| {
-            format!(
-                "Failed to write index entry for {} in cache at {:?}",
-                key, cache
-            )
-        })
+        index::insert(&cache, &key, self.opts)
     }
 }
 

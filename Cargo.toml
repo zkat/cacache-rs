@@ -29,7 +29,6 @@ serde_derive = "1.0.102"
 walkdir = "2.2.9"
 either = "1.5.3"
 async-std = { version = "1.0.1", features = ["unstable"] }
-anyhow = "1.0.19"
 thiserror = "1.0.5"
 futures = "0.3.1"
 

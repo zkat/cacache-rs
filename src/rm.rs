@@ -4,10 +4,10 @@ use std::path::Path;
 
 use async_std::fs as afs;
 
-use anyhow::{Context, Result};
 use ssri::Integrity;
 
 use crate::content::rm;
+use crate::errors::{Internal, Result};
 use crate::index;
 
 /// Removes an individual index metadata entry. The associated content will be
@@ -17,10 +17,9 @@ use crate::index;
 /// ```no_run
 /// use async_std::prelude::*;
 /// use async_attributes;
-/// use anyhow::Result;
 ///
 /// #[async_attributes::main]
-/// async fn main() -> Result<()> {
+/// async fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
 ///
 ///     cacache::remove("./my-cache", "my-key").await?;
@@ -39,15 +38,7 @@ where
     P: AsRef<Path>,
     K: AsRef<str>,
 {
-    index::delete_async(cache.as_ref(), key.as_ref())
-        .await
-        .with_context(|| {
-            format!(
-                "Failed to delete cache entry for {} in cache at {:?}",
-                key.as_ref(),
-                cache.as_ref()
-            )
-        })
+    index::delete_async(cache.as_ref(), key.as_ref()).await
 }
 
 /// Removes an individual content entry. Any index entries pointing to this
@@ -57,10 +48,9 @@ where
 /// ```no_run
 /// use async_std::prelude::*;
 /// use async_attributes;
-/// use anyhow::Result;
 ///
 /// #[async_attributes::main]
-/// async fn main() -> Result<()> {
+/// async fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
 ///
 ///     cacache::remove_hash("./my-cache", &sri).await?;
@@ -76,13 +66,7 @@ where
 /// }
 /// ```
 pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
-    rm::rm_async(cache.as_ref(), &sri).await.with_context(|| {
-        format!(
-            "Failed to remove content under {} in cache at {:?}",
-            sri.to_string(),
-            cache.as_ref()
-        )
-    })
+    Ok(rm::rm_async(cache.as_ref(), &sri).await?)
 }
 
 /// Removes entire contents of the cache, including temporary files, the entry
@@ -92,10 +76,9 @@ pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()
 /// ```no_run
 /// use async_std::prelude::*;
 /// use async_attributes;
-/// use anyhow::Result;
 ///
 /// #[async_attributes::main]
-/// async fn main() -> Result<()> {
+/// async fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
 ///
 ///     cacache::clear("./my-cache").await?;
@@ -109,9 +92,9 @@ pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()
 /// }
 /// ```
 pub async fn clear<P: AsRef<Path>>(cache: P) -> Result<()> {
-    for entry in cache.as_ref().read_dir()? {
+    for entry in cache.as_ref().read_dir().to_internal()? {
         if let Ok(entry) = entry {
-            afs::remove_dir_all(entry.path()).await?;
+            afs::remove_dir_all(entry.path()).await.to_internal()?;
         }
     }
     Ok(())
@@ -122,10 +105,9 @@ pub async fn clear<P: AsRef<Path>>(cache: P) -> Result<()> {
 ///
 /// ## Example
 /// ```no_run
-/// use anyhow::Result;
 /// use std::io::Read;
 ///
-/// fn main() -> Result<()> {
+/// fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello")?;
 ///
 ///     cacache::remove_sync("./my-cache", "my-key")?;
@@ -144,13 +126,7 @@ where
     P: AsRef<Path>,
     K: AsRef<str>,
 {
-    index::delete(cache.as_ref(), key.as_ref()).with_context(|| {
-        format!(
-            "Failed to delete cache entry for {} in cache at {:?}",
-            key.as_ref(),
-            cache.as_ref()
-        )
-    })
+    index::delete(cache.as_ref(), key.as_ref())
 }
 
 /// Removes an individual content entry synchronously. Any index entries
@@ -158,10 +134,9 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// use anyhow::Result;
 /// use std::io::Read;
 ///
-/// fn main() -> Result<()> {
+/// fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello")?;
 ///
 ///     cacache::remove_hash_sync("./my-cache", &sri)?;
@@ -177,13 +152,7 @@ where
 /// }
 /// ```
 pub fn remove_hash_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
-    rm::rm(cache.as_ref(), &sri).with_context(|| {
-        format!(
-            "Failed to remove content under {} in cache at {:?}",
-            sri.to_string(),
-            cache.as_ref()
-        )
-    })
+    Ok(rm::rm(cache.as_ref(), &sri)?)
 }
 
 /// Removes entire contents of the cache synchronously, including temporary
@@ -191,10 +160,9 @@ pub fn remove_hash_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()>
 ///
 /// ## Example
 /// ```no_run
-/// use anyhow::Result;
 /// use std::io::Read;
 ///
-/// fn main() -> Result<()> {
+/// fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello")?;
 ///
 ///     cacache::clear_sync("./my-cache")?;
@@ -208,9 +176,9 @@ pub fn remove_hash_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()>
 /// }
 /// ```
 pub fn clear_sync<P: AsRef<Path>>(cache: P) -> Result<()> {
-    for entry in cache.as_ref().read_dir()? {
+    for entry in cache.as_ref().read_dir().to_internal()? {
         if let Ok(entry) = entry {
-            fs::remove_dir_all(entry.path())?;
+            fs::remove_dir_all(entry.path()).to_internal()?;
         }
     }
     Ok(())
