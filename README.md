@@ -1,4 +1,4 @@
-# cacache
+# cacache ![CI](https://github.com/zkat/cacache-rs/workflows/CI/badge.svg)
 
 A high-performance, concurrent, content-addressable disk cache, optimized for async APIs.
 
