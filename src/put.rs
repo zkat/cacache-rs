@@ -43,10 +43,40 @@ where
     writer.commit().await
 }
 
+/// Writes `data` to the `cache`, skipping associating an index key with it.
+///
+/// ## Example
+/// ```no_run
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     cacache::write_hash("./my-cache", b"hello").await?;
+///     Ok(())
+/// }
+/// ```
+pub async fn write_hash<P, D>(cache: P, data: D) -> Result<Integrity>
+where
+    P: AsRef<Path>,
+    D: AsRef<[u8]>,
+{
+    let mut writer = WriteOpts::new()
+        .algorithm(Algorithm::Sha256)
+        .open_hash(cache.as_ref())
+        .await?;
+    writer.write_all(data.as_ref()).await.with_context(|| {
+        format!(
+            "Failed to write to cache data for cache at {:?}",
+            cache.as_ref()
+        )
+    })?;
+    writer.commit().await
+}
+
 /// A reference to an open file writing to the cache.
 pub struct Writer {
     cache: PathBuf,
-    key: String,
+    key: Option<String>,
     written: usize,
     pub(crate) writer: write::AsyncWriter,
     opts: WriteOpts,
@@ -103,7 +133,6 @@ impl Writer {
     /// Must be called manually in order to complete the writing process,
     /// otherwise everything will be thrown out.
     pub async fn commit(mut self) -> Result<Integrity> {
-        let key = self.key;
         let cache = self.cache;
         let writer_sri = self.writer.close().await?;
         if let Some(sri) = &self.opts.sri {
@@ -111,14 +140,18 @@ impl Writer {
                 return Err(ssri::Error::IntegrityCheckError(sri.clone(), writer_sri))?;
             }
         } else {
-            self.opts.sri = Some(writer_sri);
+            self.opts.sri = Some(writer_sri.clone());
         }
         if let Some(size) = self.opts.size {
             if size != self.written {
                 return Err(Error::SizeError(size, self.written));
             }
         }
-        index::insert_async(&cache, &key, self.opts).await
+        if let Some(key) = self.key {
+            index::insert_async(&cache, &key, self.opts).await
+        } else {
+            Ok(writer_sri)
+        }
     }
 }
 
@@ -174,7 +207,25 @@ impl WriteOpts {
     {
         Ok(Writer {
             cache: cache.as_ref().to_path_buf(),
-            key: String::from(key.as_ref()),
+            key: Some(String::from(key.as_ref())),
+            written: 0,
+            writer: write::AsyncWriter::new(
+                cache.as_ref(),
+                *self.algorithm.as_ref().unwrap_or(&Algorithm::Sha256),
+            )
+            .await?,
+            opts: self,
+        })
+    }
+
+    /// Opens the file handle for writing, without a key returning an Writer instance.
+    pub async fn open_hash<P>(self, cache: P) -> Result<Writer>
+    where
+        P: AsRef<Path>,
+    {
+        Ok(Writer {
+            cache: cache.as_ref().to_path_buf(),
+            key: None,
             written: 0,
             writer: write::AsyncWriter::new(
                 cache.as_ref(),
