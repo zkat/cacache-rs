@@ -194,18 +194,18 @@ fn write_hash_async(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    // baseline_read_sync,
-    // baseline_read_many_sync,
-    // baseline_read_async,
-    // baseline_read_many_async,
-    // read_hash_async,
-    // read_hash_many_async,
-    // read_async,
+    baseline_read_sync,
+    baseline_read_many_sync,
+    baseline_read_async,
+    baseline_read_many_async,
+    read_hash_async,
+    read_hash_many_async,
+    read_async,
     write_hash_async,
-    // read_hash_sync,
-    // read_hash_many_sync,
-    // read_sync,
-    // read_hash_async_big_data,
-    // read_hash_sync_big_data
+    read_hash_sync,
+    read_hash_many_sync,
+    read_sync,
+    read_hash_async_big_data,
+    read_hash_sync_big_data
 );
 criterion_main!(benches);

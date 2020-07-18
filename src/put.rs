@@ -32,7 +32,11 @@ where
     D: AsRef<[u8]>,
     K: AsRef<str>,
 {
-    let mut writer = Writer::create(cache.as_ref(), key.as_ref()).await?;
+    let mut writer = WriteOpts::new()
+        .algorithm(Algorithm::Sha256)
+        .size(data.as_ref().len())
+        .open(cache.as_ref(), key.as_ref())
+        .await?;
     writer.write_all(data.as_ref()).await.with_context(|| {
         format!(
             "Failed to write to cache data for key {} for cache at {:?}",
@@ -62,6 +66,7 @@ where
 {
     let mut writer = WriteOpts::new()
         .algorithm(Algorithm::Sha256)
+        .size(data.as_ref().len())
         .open_hash(cache.as_ref())
         .await?;
     writer.write_all(data.as_ref()).await.with_context(|| {
@@ -88,7 +93,9 @@ impl AsyncWrite for Writer {
         cx: &mut TaskContext<'_>,
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
-        Pin::new(&mut self.writer).poll_write(cx, buf)
+        let amt = futures::ready!(Pin::new(&mut self.writer).poll_write(cx, buf))?;
+        self.written += amt;
+        Poll::Ready(Ok(amt))
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<std::io::Result<()>> {
@@ -180,6 +187,37 @@ where
             cache.as_ref()
         )
     })?;
+    writer.written = data.as_ref().len();
+    writer.commit()
+}
+
+/// Writes `data` to the `cache` synchronously, skipping associating a key with it.
+///
+/// ## Example
+/// ```no_run
+/// use std::io::Read;
+///
+/// fn main() -> cacache::Result<()> {
+///     let data = cacache::write_hash_sync("./my-cache", b"hello")?;
+///     Ok(())
+/// }
+/// ```
+pub fn write_hash_sync<P, D>(cache: P, data: D) -> Result<Integrity>
+where
+    P: AsRef<Path>,
+    D: AsRef<[u8]>,
+{
+    let mut writer = WriteOpts::new()
+        .algorithm(Algorithm::Sha256)
+        .size(data.as_ref().len())
+        .open_hash_sync(cache.as_ref())?;
+    writer.write_all(data.as_ref()).with_context(|| {
+        format!(
+            "Failed to write to cache data for cache at {:?}",
+            cache.as_ref()
+        )
+    })?;
+    writer.written = data.as_ref().len();
     writer.commit()
 }
 
@@ -212,6 +250,7 @@ impl WriteOpts {
             writer: write::AsyncWriter::new(
                 cache.as_ref(),
                 *self.algorithm.as_ref().unwrap_or(&Algorithm::Sha256),
+                None,
             )
             .await?,
             opts: self,
@@ -230,6 +269,7 @@ impl WriteOpts {
             writer: write::AsyncWriter::new(
                 cache.as_ref(),
                 *self.algorithm.as_ref().unwrap_or(&Algorithm::Sha256),
+                self.size,
             )
             .await?,
             opts: self,
@@ -244,11 +284,30 @@ impl WriteOpts {
     {
         Ok(SyncWriter {
             cache: cache.as_ref().to_path_buf(),
-            key: String::from(key.as_ref()),
+            key: Some(String::from(key.as_ref())),
             written: 0,
             writer: write::Writer::new(
                 cache.as_ref(),
                 *self.algorithm.as_ref().unwrap_or(&Algorithm::Sha256),
+                self.size,
+            )?,
+            opts: self,
+        })
+    }
+
+    /// Opens the file handle for writing, without a key returning an SyncWriter instance.
+    pub fn open_hash_sync<P>(self, cache: P) -> Result<SyncWriter>
+    where
+        P: AsRef<Path>,
+    {
+        Ok(SyncWriter {
+            cache: cache.as_ref().to_path_buf(),
+            key: None,
+            written: 0,
+            writer: write::Writer::new(
+                cache.as_ref(),
+                *self.algorithm.as_ref().unwrap_or(&Algorithm::Sha256),
+                self.size,
             )?,
             opts: self,
         })
@@ -293,7 +352,7 @@ impl WriteOpts {
 /// A reference to an open file writing to the cache.
 pub struct SyncWriter {
     cache: PathBuf,
-    key: String,
+    key: Option<String>,
     written: usize,
     pub(crate) writer: write::Writer,
     opts: WriteOpts,
@@ -301,7 +360,9 @@ pub struct SyncWriter {
 
 impl Write for SyncWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.writer.write(buf)
+        let written = self.writer.write(buf)?;
+        self.written += written;
+        Ok(written)
     }
     fn flush(&mut self) -> std::io::Result<()> {
         self.writer.flush()
@@ -338,28 +399,25 @@ impl SyncWriter {
     /// Must be called manually in order to complete the writing process,
     /// otherwise everything will be thrown out.
     pub fn commit(mut self) -> Result<Integrity> {
-        let key = self.key;
         let cache = self.cache;
-        let writer_sri = self.writer.close().with_context(|| {
-            format!(
-                "Failed to properly close save file data for key {} in cache at {:?}",
-                key, cache
-            )
-        })?;
+        let writer_sri = self.writer.close()?;
         if let Some(sri) = &self.opts.sri {
-            // TODO - ssri should have a .matches method
             if sri.matches(&writer_sri).is_none() {
                 return Err(ssri::Error::IntegrityCheckError(sri.clone(), writer_sri))?;
             }
         } else {
-            self.opts.sri = Some(writer_sri);
+            self.opts.sri = Some(writer_sri.clone());
         }
         if let Some(size) = self.opts.size {
             if size != self.written {
                 return Err(Error::SizeError(size, self.written))?;
             }
         }
-        index::insert(&cache, &key, self.opts)
+        if let Some(key) = self.key {
+            index::insert(&cache, &key, self.opts)
+        } else {
+            Ok(writer_sri)
+        }
     }
 }
 
