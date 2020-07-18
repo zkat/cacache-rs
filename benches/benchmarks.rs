@@ -181,11 +181,7 @@ fn write_hash_async(c: &mut Criterion) {
         b.iter_custom(|iters| {
             let start = std::time::Instant::now();
             for i in 0..iters {
-                task::block_on(cacache::write_hash(
-                    &cache,
-                    format!("hello world{}", i),
-                ))
-                .unwrap();
+                task::block_on(cacache::write_hash(&cache, format!("hello world{}", i))).unwrap();
             }
             start.elapsed()
         })
