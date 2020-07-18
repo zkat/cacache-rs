@@ -1,3 +1,11 @@
+<a name="8.0.0"></a>
+
+## 8.0.0 (2020-07-18)
+
+#### Breaking Changes
+
+- **write:** Use mmap for small writes (#26) ([803d0c3e](https://github.com/zkat/cacache-rs/commit/803d0c3ede199c20aec1b514daf21fab9ee68ac2), breaks [#](https://github.com/zkat/cacache-rs/issues/)). This bumps the minimum Rust version from 1.39 to 1.43 due to a dependency's breaking change in a patch version.
+
 <a name="7.0.0"></a>
 
 ## 7.0.0 (2020-04-30)
