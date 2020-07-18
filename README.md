@@ -30,6 +30,8 @@ Using [`cargo-edit`](https://crates.io/crates/cargo-edit)
 
 `$ cargo add cacache`
 
+Minimum supported Rust version is `1.43.0`.
+
 ## Documentation
 
 - [API Docs](https://docs.rs/cacache)
