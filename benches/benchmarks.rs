@@ -174,6 +174,20 @@ fn read_hash_async_big_data(c: &mut Criterion) {
     });
 }
 
+fn write_hash_async(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    c.bench_function("put::data", move |b| {
+        b.iter_custom(|iters| {
+            let start = std::time::Instant::now();
+            for i in 0..iters {
+                task::block_on(cacache::write_hash(&cache, format!("hello world{}", i))).unwrap();
+            }
+            start.elapsed()
+        })
+    });
+}
+
 criterion_group!(
     benches,
     baseline_read_sync,
@@ -182,9 +196,10 @@ criterion_group!(
     baseline_read_many_async,
     read_hash_async,
     read_hash_many_async,
+    read_async,
+    write_hash_async,
     read_hash_sync,
     read_hash_many_sync,
-    read_async,
     read_sync,
     read_hash_async_big_data,
     read_hash_sync_big_data

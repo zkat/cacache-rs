@@ -9,20 +9,24 @@ use async_std::future::Future;
 use async_std::task::{self, Context, JoinHandle, Poll};
 use futures::io::AsyncWrite;
 use futures::prelude::*;
+use memmap::MmapMut;
 use ssri::{Algorithm, Integrity, IntegrityOpts};
 use tempfile::NamedTempFile;
 
 use crate::content::path;
 use crate::errors::{Internal, Result};
 
+pub const MAX_MMAP_SIZE: usize = 1 * 1024 * 1024;
+
 pub struct Writer {
     cache: PathBuf,
     builder: IntegrityOpts,
+    mmap: Option<MmapMut>,
     tmpfile: NamedTempFile,
 }
 
 impl Writer {
-    pub fn new(cache: &Path, algo: Algorithm) -> Result<Writer> {
+    pub fn new(cache: &Path, algo: Algorithm, size: Option<usize>) -> Result<Writer> {
         let cache_path = cache.to_path_buf();
         let mut tmp_path = cache_path.clone();
         tmp_path.push("tmp");
@@ -30,10 +34,21 @@ impl Writer {
             .recursive(true)
             .create(&tmp_path)
             .to_internal()?;
+        let tmpfile = NamedTempFile::new_in(tmp_path).to_internal()?;
+        let mmap = if let Some(size) = size {
+            if size <= MAX_MMAP_SIZE {
+                unsafe { MmapMut::map_mut(tmpfile.as_file()).ok() }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
         Ok(Writer {
             cache: cache_path,
             builder: IntegrityOpts::new().algorithm(algo),
-            tmpfile: NamedTempFile::new_in(tmp_path).to_internal()?,
+            tmpfile,
+            mmap,
         })
     }
 
@@ -45,7 +60,13 @@ impl Writer {
             // Safe unwrap. cpath always has multiple segments
             .create(cpath.parent().unwrap())
             .to_internal()?;
-        self.tmpfile.persist(cpath).to_internal()?;
+        let res = self.tmpfile.persist(&cpath).to_internal();
+        if res.is_err() {
+            // We might run into conflicts sometimes when persisting files.
+            // This is ok. We can deal. Let's just make sure the destination
+            // file actually exists, and we can move on.
+            std::fs::metadata(cpath).to_internal()?;
+        }
         Ok(sri)
     }
 }
@@ -53,7 +74,12 @@ impl Writer {
 impl Write for Writer {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.builder.input(&buf);
-        self.tmpfile.write(&buf)
+        if let Some(mmap) = &mut self.mmap {
+            mmap.copy_from_slice(&buf);
+            Ok(buf.len())
+        } else {
+            self.tmpfile.write(&buf)
+        }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
@@ -72,6 +98,7 @@ struct Inner {
     cache: PathBuf,
     builder: IntegrityOpts,
     tmpfile: NamedTempFile,
+    mmap: Option<MmapMut>,
     buf: Vec<u8>,
     last_op: Option<Operation>,
 }
@@ -84,7 +111,7 @@ enum Operation {
 impl AsyncWriter {
     #[allow(clippy::new_ret_no_self)]
     #[allow(clippy::needless_lifetimes)]
-    pub async fn new(cache: &Path, algo: Algorithm) -> Result<AsyncWriter> {
+    pub async fn new(cache: &Path, algo: Algorithm, size: Option<usize>) -> Result<AsyncWriter> {
         let cache_path = cache.to_path_buf();
         let mut tmp_path = cache_path.clone();
         tmp_path.push("tmp");
@@ -93,12 +120,23 @@ impl AsyncWriter {
             .create(&tmp_path)
             .await
             .to_internal()?;
+        let tmpfile = task::spawn_blocking(|| NamedTempFile::new_in(tmp_path))
+            .await
+            .to_internal()?;
+        let mmap = if let Some(size) = size {
+            if size <= MAX_MMAP_SIZE {
+                unsafe { MmapMut::map_mut(tmpfile.as_file()).ok() }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
         Ok(AsyncWriter(Mutex::new(State::Idle(Some(Inner {
             cache: cache_path,
             builder: IntegrityOpts::new().algorithm(algo),
-            tmpfile: task::spawn_blocking(|| NamedTempFile::new_in(tmp_path))
-                .await
-                .to_internal()?,
+            mmap,
+            tmpfile,
             buf: vec![],
             last_op: None,
         })))))
@@ -122,12 +160,11 @@ impl AsyncWriter {
                             let cpath = path::content_path(&inner.cache, &sri);
 
                             // Start the operation asynchronously.
-                            *state = State::Busy(task::spawn(async move {
-                                let res = afs::DirBuilder::new()
+                            *state = State::Busy(task::spawn_blocking(|| {
+                                let res = std::fs::DirBuilder::new()
                                     .recursive(true)
                                     // Safe unwrap. cpath always has multiple segments
                                     .create(cpath.parent().unwrap())
-                                    .await
                                     .with_context(|| {
                                         format!(
                                             "building directory {} failed",
@@ -137,10 +174,26 @@ impl AsyncWriter {
                                 if res.is_err() {
                                     let _ = s.send(res.map(|_| sri));
                                 } else {
-                                    let res = tmpfile.persist(cpath).with_context(|| {
+                                    let res = tmpfile.persist(&cpath).with_context(|| {
                                         String::from("persisting tempfile failed")
                                     });
-                                    let _ = s.send(res.map(|_| sri));
+                                    if res.is_err() {
+                                        // We might run into conflicts
+                                        // sometimes when persisting files.
+                                        // This is ok. We can deal. Let's just
+                                        // make sure the destination file
+                                        // actually exists, and we can move
+                                        // on.
+                                        let _ = s.send(
+                                            std::fs::metadata(cpath)
+                                                .with_context(|| {
+                                                    String::from("File still doesn't exist")
+                                                })
+                                                .map(|_| sri),
+                                        );
+                                    } else {
+                                        let _ = s.send(res.map(|_| sri));
+                                    }
                                 }
                                 State::Idle(None)
                             }));
@@ -202,9 +255,15 @@ impl AsyncWrite for AsyncWriter {
                         // Start the operation asynchronously.
                         *state = State::Busy(task::spawn_blocking(|| {
                             inner.builder.input(&inner.buf);
-                            let res = inner.tmpfile.write(&inner.buf);
-                            inner.last_op = Some(Operation::Write(res));
-                            State::Idle(Some(inner))
+                            if let Some(mmap) = &mut inner.mmap {
+                                mmap.copy_from_slice(&inner.buf);
+                                inner.last_op = Some(Operation::Write(Ok(inner.buf.len())));
+                                State::Idle(Some(inner))
+                            } else {
+                                let res = inner.tmpfile.write(&inner.buf);
+                                inner.last_op = Some(Operation::Write(res));
+                                State::Idle(Some(inner))
+                            }
                         }));
                     }
                 }
@@ -232,6 +291,13 @@ impl AsyncWrite for AsyncWriter {
                         return Poll::Ready(res);
                     } else {
                         let mut inner = opt.take().unwrap();
+
+                        if let Some(mmap) = &inner.mmap {
+                            match mmap.flush_async() {
+                                Ok(_) => (),
+                                Err(e) => return Poll::Ready(Err(e)),
+                            };
+                        }
 
                         // Start the operation asynchronously.
                         *state = State::Busy(task::spawn_blocking(|| {
@@ -286,7 +352,7 @@ mod tests {
     fn basic_write() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let mut writer = Writer::new(&dir, Algorithm::Sha256).unwrap();
+        let mut writer = Writer::new(&dir, Algorithm::Sha256, None).unwrap();
         writer.write_all(b"hello world").unwrap();
         let sri = writer.close().unwrap();
         assert_eq!(sri.to_string(), Integrity::from(b"hello world").to_string());
@@ -301,7 +367,9 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
         task::block_on(async {
-            let mut writer = AsyncWriter::new(&dir, Algorithm::Sha256).await.unwrap();
+            let mut writer = AsyncWriter::new(&dir, Algorithm::Sha256, None)
+                .await
+                .unwrap();
             writer.write_all(b"hello world").await.unwrap();
             let sri = writer.close().await.unwrap();
             assert_eq!(sri.to_string(), Integrity::from(b"hello world").to_string());
