@@ -216,7 +216,7 @@ impl AsyncWriter {
 
 impl AsyncWrite for AsyncWriter {
     fn poll_write(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
@@ -273,7 +273,7 @@ impl AsyncWrite for AsyncWriter {
         }
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         let state = &mut *self.0.lock().unwrap();
 
         loop {
@@ -313,7 +313,7 @@ impl AsyncWrite for AsyncWriter {
         }
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         let state = &mut *self.0.lock().unwrap();
 
         loop {
