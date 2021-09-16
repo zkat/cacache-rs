@@ -89,7 +89,7 @@ impl Reader {
             return Err(Error::EntryNotFound(
                 cache.as_ref().to_path_buf(),
                 key.as_ref().into(),
-            ))
+            ));
         }
     }
 
@@ -146,7 +146,7 @@ where
         return Err(Error::EntryNotFound(
             cache.as_ref().to_path_buf(),
             key.as_ref().into(),
-        ))
+        ));
     }
 }
 
@@ -198,7 +198,7 @@ where
         return Err(Error::EntryNotFound(
             cache.as_ref().to_path_buf(),
             key.as_ref().into(),
-        ))
+        ));
     }
 }
 
@@ -240,9 +240,7 @@ where
 
 /// Returns true if the given hash exists in the cache.
 pub async fn exists<P: AsRef<Path>>(cache: P, sri: &Integrity) -> bool {
-    read::has_content_async(cache.as_ref(), sri)
-        .await
-        .is_some()
+    read::has_content_async(cache.as_ref(), sri).await.is_some()
 }
 
 // ---------------
@@ -313,7 +311,7 @@ impl SyncReader {
             return Err(Error::EntryNotFound(
                 cache.as_ref().to_path_buf(),
                 key.as_ref().into(),
-            ))
+            ));
         }
     }
 
@@ -366,7 +364,7 @@ where
         return Err(Error::EntryNotFound(
             cache.as_ref().to_path_buf(),
             key.as_ref().into(),
-        ))
+        ));
     }
 }
 
@@ -414,7 +412,7 @@ where
         return Err(Error::EntryNotFound(
             cache.as_ref().to_path_buf(),
             key.as_ref().into(),
-        ))
+        ));
     }
 }
 
