@@ -16,7 +16,7 @@ use tempfile::NamedTempFile;
 use crate::content::path;
 use crate::errors::{Internal, Result};
 
-pub const MAX_MMAP_SIZE: usize = 1 * 1024 * 1024;
+pub const MAX_MMAP_SIZE: usize = 1024 * 1024;
 
 pub struct Writer {
     cache: PathBuf,
@@ -73,12 +73,12 @@ impl Writer {
 
 impl Write for Writer {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.builder.input(&buf);
+        self.builder.input(buf);
         if let Some(mmap) = &mut self.mmap {
-            mmap.copy_from_slice(&buf);
+            mmap.copy_from_slice(buf);
             Ok(buf.len())
         } else {
-            self.tmpfile.write(&buf)
+            self.tmpfile.write(buf)
         }
     }
 
@@ -216,7 +216,7 @@ impl AsyncWriter {
 
 impl AsyncWrite for AsyncWriter {
     fn poll_write(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
@@ -273,7 +273,7 @@ impl AsyncWrite for AsyncWriter {
         }
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         let state = &mut *self.0.lock().unwrap();
 
         loop {
@@ -313,7 +313,7 @@ impl AsyncWrite for AsyncWriter {
         }
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         let state = &mut *self.0.lock().unwrap();
 
         loop {

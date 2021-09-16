@@ -11,9 +11,8 @@ use digest::Digest;
 use either::{Left, Right};
 use futures::io::{AsyncBufReadExt, AsyncWriteExt};
 use futures::stream::StreamExt;
-use hex;
 use serde_derive::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use sha1::Sha1;
 use sha2::Sha256;
 use ssri::Integrity;
@@ -63,7 +62,7 @@ impl Hash for SerializableMetadata {
 }
 
 pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
-    let bucket = bucket_path(&cache, &key);
+    let bucket = bucket_path(cache, key);
     fs::create_dir_all(bucket.parent().unwrap()).with_context(|| {
         format!(
             "Failed to create index bucket directory: {:?}",
@@ -75,7 +74,7 @@ pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
         integrity: opts.sri.clone().map(|x| x.to_string()),
         time: opts.time.unwrap_or_else(now),
         size: opts.size.unwrap_or(0),
-        metadata: opts.metadata.unwrap_or_else(|| json!(null)),
+        metadata: opts.metadata.unwrap_or(serde_json::Value::Null),
     })
     .with_context(|| format!("Failed to serialize entry with key `{}`", key))?;
 
@@ -97,7 +96,7 @@ pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
 }
 
 pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) -> Result<Integrity> {
-    let bucket = bucket_path(&cache, &key);
+    let bucket = bucket_path(cache, key);
     afs::create_dir_all(bucket.parent().unwrap())
         .await
         .with_context(|| {
@@ -111,7 +110,7 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) ->
         integrity: opts.sri.clone().map(|x| x.to_string()),
         time: opts.time.unwrap_or_else(now),
         size: opts.size.unwrap_or(0),
-        metadata: opts.metadata.unwrap_or_else(|| json!(null)),
+        metadata: opts.metadata.unwrap_or(serde_json::Value::Null),
     })
     .with_context(|| format!("Failed to serialize entry with key `{}`", key))?;
 
@@ -136,7 +135,7 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) ->
 }
 
 pub fn find(cache: &Path, key: &str) -> Result<Option<Metadata>> {
-    let bucket = bucket_path(cache, &key);
+    let bucket = bucket_path(cache, key);
     Ok(bucket_entries(&bucket)
         .with_context(|| format!("Failed to read index bucket entries from {:?}", bucket))?
         .into_iter()
@@ -164,7 +163,7 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Metadata>> {
 }
 
 pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Metadata>> {
-    let bucket = bucket_path(cache, &key);
+    let bucket = bucket_path(cache, key);
     Ok(bucket_entries_async(&bucket)
         .await
         .with_context(|| format!("Failed to read index bucket entries from {:?}", bucket))?
@@ -258,7 +257,7 @@ pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Metadata>> {
 }
 
 fn bucket_path(cache: &Path, key: &str) -> PathBuf {
-    let hashed = hash_key(&key);
+    let hashed = hash_key(key);
     cache
         .join(format!("index-v{}", INDEX_VERSION))
         .join(&hashed[0..2])
@@ -343,7 +342,7 @@ async fn bucket_entries_async(bucket: &Path) -> InternalResult<Vec<SerializableM
 mod tests {
     use super::*;
     use async_std::task;
-    use tempfile;
+    use serde_json::json;
 
     const MOCK_ENTRY: &str = "\n251d18a2b33264ea8655695fd23c88bd874cdea2c3dc9d8f9b7596717ad30fec\t{\"key\":\"hello\",\"integrity\":\"sha1-deadbeef\",\"time\":1234567,\"size\":0,\"metadata\":null}";
 

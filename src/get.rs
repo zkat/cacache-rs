@@ -86,10 +86,10 @@ impl Reader {
         if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
             Reader::open_hash(cache, entry.integrity).await
         } else {
-            Err(Error::EntryNotFound(
+            return Err(Error::EntryNotFound(
                 cache.as_ref().to_path_buf(),
                 key.as_ref().into(),
-            ))?
+            ))
         }
     }
 
@@ -143,10 +143,10 @@ where
     if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
         read_hash(cache, &entry.integrity).await
     } else {
-        Err(Error::EntryNotFound(
+        return Err(Error::EntryNotFound(
             cache.as_ref().to_path_buf(),
             key.as_ref().into(),
-        ))?
+        ))
     }
 }
 
@@ -195,10 +195,10 @@ where
     if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
         copy_hash(cache, &entry.integrity, to).await
     } else {
-        Err(Error::EntryNotFound(
+        return Err(Error::EntryNotFound(
             cache.as_ref().to_path_buf(),
             key.as_ref().into(),
-        ))?
+        ))
     }
 }
 
@@ -240,7 +240,7 @@ where
 
 /// Returns true if the given hash exists in the cache.
 pub async fn exists<P: AsRef<Path>>(cache: P, sri: &Integrity) -> bool {
-    read::has_content_async(cache.as_ref(), &sri)
+    read::has_content_async(cache.as_ref(), sri)
         .await
         .is_some()
 }
@@ -310,10 +310,10 @@ impl SyncReader {
         if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
             SyncReader::open_hash(cache, entry.integrity)
         } else {
-            Err(Error::EntryNotFound(
+            return Err(Error::EntryNotFound(
                 cache.as_ref().to_path_buf(),
                 key.as_ref().into(),
-            ))?
+            ))
         }
     }
 
@@ -363,10 +363,10 @@ where
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
         read_hash_sync(cache, &entry.integrity)
     } else {
-        Err(Error::EntryNotFound(
+        return Err(Error::EntryNotFound(
             cache.as_ref().to_path_buf(),
             key.as_ref().into(),
-        ))?
+        ))
     }
 }
 
@@ -387,7 +387,7 @@ pub fn read_hash_sync<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>>
 where
     P: AsRef<Path>,
 {
-    Ok(read::read(cache.as_ref(), sri)?)
+    read::read(cache.as_ref(), sri)
 }
 
 /// Copies a cache entry by key to a specified location. Returns the number of
@@ -411,10 +411,10 @@ where
     if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
         copy_hash_sync(cache, &entry.integrity, to)
     } else {
-        Err(Error::EntryNotFound(
+        return Err(Error::EntryNotFound(
             cache.as_ref().to_path_buf(),
             key.as_ref().into(),
-        ))?
+        ))
     }
 }
 
@@ -449,21 +449,19 @@ where
     P: AsRef<Path>,
     K: AsRef<str>,
 {
-    Ok(index::find(cache.as_ref(), key.as_ref())?)
+    index::find(cache.as_ref(), key.as_ref())
 }
 
 /// Returns true if the given hash exists in the cache.
 pub fn exists_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> bool {
-    read::has_content(cache.as_ref(), &sri).is_some()
+    read::has_content(cache.as_ref(), sri).is_some()
 }
 
 #[cfg(test)]
 mod tests {
-    use async_attributes;
     use async_std::fs as afs;
     use async_std::prelude::*;
     use std::fs;
-    use tempfile;
 
     #[async_attributes::test]
     async fn test_open() {

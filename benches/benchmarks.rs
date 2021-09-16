@@ -2,9 +2,9 @@ use async_std::{fs as afs, task};
 use std::fs::{self, File};
 use std::io::prelude::*;
 
-use cacache;
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use tempfile;
+
 
 const NUM_REPEATS: usize = 10;
 
@@ -97,7 +97,7 @@ fn read_hash_many_sync(c: &mut Criterion) {
     c.bench_function("get::data_hash_many_sync", move |b| {
         b.iter(|| {
             for sri in sris.iter() {
-                cacache::read_hash_sync(black_box(&cache), black_box(&sri)).unwrap();
+                cacache::read_hash_sync(black_box(&cache), black_box(sri)).unwrap();
             }
         })
     });
@@ -138,7 +138,7 @@ fn read_hash_many_async(c: &mut Criterion) {
         b.iter(|| {
             let tasks = sris
                 .iter()
-                .map(|sri| cacache::read_hash(black_box(&cache), black_box(&sri)));
+                .map(|sri| cacache::read_hash(black_box(&cache), black_box(sri)));
             task::block_on(futures::future::join_all(tasks));
         })
     });
