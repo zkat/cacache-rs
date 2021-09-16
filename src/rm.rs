@@ -214,7 +214,7 @@ mod tests {
             assert!(entry.is_some());
 
             let data_exists = crate::exists(&dir, &sri).await;
-            assert!(data_exists);
+            assert!(!data_exists);
         });
     }
 
@@ -228,10 +228,10 @@ mod tests {
             crate::clear(&dir).await.unwrap();
 
             let entry = crate::metadata(&dir, "key").await.unwrap();
-            assert!(entry.is_some());
+            assert!(entry.is_none());
 
             let data_exists = crate::exists(&dir, &sri).await;
-            assert!(data_exists);
+            assert!(!data_exists);
         });
     }
 
@@ -244,7 +244,7 @@ mod tests {
         crate::remove_sync(&dir, "key").unwrap();
 
         let new_entry = crate::metadata_sync(&dir, "key").unwrap();
-        assert_eq!(new_entry, None);
+        assert!(new_entry.is_none());
 
         let data_exists = crate::exists_sync(&dir, &sri);
         assert!(data_exists);
@@ -262,7 +262,7 @@ mod tests {
         assert!(entry.is_some());
 
         let data_exists = crate::exists_sync(&dir, &sri);
-        assert!(data_exists);
+        assert!(!data_exists);
     }
 
     #[test]
@@ -277,6 +277,6 @@ mod tests {
         assert_eq!(entry, None);
 
         let data_exists = crate::exists_sync(&dir, &sri);
-        assert!(data_exists);
+        assert!(!data_exists);
     }
 }
