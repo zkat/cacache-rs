@@ -1,5 +1,19 @@
-<a name="8.0.0"></a>
+# `cacache` Release Changelog
 
+<a name="9.0.0"></a>
+## 9.0.0 (2021-09-16)
+
+### Bug Fixes
+
+* **clippy:** appease the paperclip ([8d08e452](https://github.com/zkat/cacache-rs/commit/8d08e452984f0bf5a266b1939f3ce2d7ab3aed7d))
+* **cleanup:** general house cleaning, bumping deps, etc ([9163a584](https://github.com/zkat/cacache-rs/commit/9163a58481e28b8ecca62268f1cf32e4e68f47db))
+
+### Features
+
+* **license:** change license to Apache-2.0 ([97890872](https://github.com/zkat/cacache-rs/commit/97890872d559b0c37aba8414c8f8b1055276c6cb))
+    * **BREAKING CHANGE**: This is a significant licensing change. Please review.
+
+<a name="8.0.0"></a>
 ## 8.0.0 (2020-07-18)
 
 #### Breaking Changes
