@@ -5,11 +5,8 @@ use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use async_std::fs as afs;
-use async_std::io::BufReader;
 use digest::Digest;
 use either::{Left, Right};
-use futures::io::{AsyncBufReadExt, AsyncWriteExt};
 use futures::stream::StreamExt;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
@@ -18,6 +15,7 @@ use sha2::Sha256;
 use ssri::Integrity;
 use walkdir::WalkDir;
 
+use crate::async_lib::{AsyncBufReadExt, AsyncWriteExt};
 use crate::errors::{Internal, InternalResult, Result};
 use crate::put::WriteOpts;
 
@@ -97,7 +95,7 @@ pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
 
 pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) -> Result<Integrity> {
     let bucket = bucket_path(cache, key);
-    afs::create_dir_all(bucket.parent().unwrap())
+    crate::async_lib::create_dir_all(bucket.parent().unwrap())
         .await
         .with_context(|| {
             format!(
@@ -114,7 +112,7 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) ->
     })
     .with_context(|| format!("Failed to serialize entry with key `{}`", key))?;
 
-    let mut buck = async_std::fs::OpenOptions::new()
+    let mut buck = crate::async_lib::OpenOptions::new()
         .create(true)
         .append(true)
         .open(&bucket)
@@ -311,7 +309,7 @@ fn bucket_entries(bucket: &Path) -> InternalResult<Vec<SerializableMetadata>> {
 }
 
 async fn bucket_entries_async(bucket: &Path) -> InternalResult<Vec<SerializableMetadata>> {
-    let file_result = afs::File::open(bucket).await;
+    let file_result = crate::async_lib::File::open(bucket).await;
     let file = if let Err(err) = file_result {
         if err.kind() == ErrorKind::NotFound {
             return Ok(Vec::new());
@@ -321,7 +319,8 @@ async fn bucket_entries_async(bucket: &Path) -> InternalResult<Vec<SerializableM
         file_result.unwrap()
     };
     let mut vec = Vec::new();
-    let mut lines = BufReader::new(file).lines();
+    let mut lines =
+        crate::async_lib::lines_to_stream(crate::async_lib::BufReader::new(file).lines());
     while let Some(line) = lines.next().await {
         if let Ok(entry) = line {
             let entry_str = match entry.split('\t').collect::<Vec<&str>>()[..] {
@@ -340,7 +339,6 @@ async fn bucket_entries_async(bucket: &Path) -> InternalResult<Vec<SerializableM
 #[cfg(test)]
 mod tests {
     use super::*;
-    use async_std::task;
     use serde_json::json;
 
     const MOCK_ENTRY: &str = "\n251d18a2b33264ea8655695fd23c88bd874cdea2c3dc9d8f9b7596717ad30fec\t{\"key\":\"hello\",\"integrity\":\"sha1-deadbeef\",\"time\":1234567,\"size\":0,\"metadata\":null}";
@@ -364,7 +362,7 @@ mod tests {
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
         let opts = WriteOpts::new().integrity(sri).time(time);
-        task::block_on(async {
+        crate::async_lib::block_on(async {
             insert_async(&dir, "hello", opts).await.unwrap();
         });
         let entry = std::fs::read_to_string(bucket_path(&dir, "hello")).unwrap();
@@ -420,7 +418,7 @@ mod tests {
         let time = 1_234_567;
         let opts = WriteOpts::new().integrity(sri).time(time);
         insert(&dir, "hello", opts).unwrap();
-        task::block_on(async {
+        crate::async_lib::block_on(async {
             delete_async(&dir, "hello").await.unwrap();
         });
         assert_eq!(find(&dir, "hello").unwrap(), None);
@@ -454,10 +452,11 @@ mod tests {
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
         let opts = WriteOpts::new().integrity(sri.clone()).time(time);
-        task::block_on(async {
+        crate::async_lib::block_on(async {
             insert_async(&dir, "hello", opts).await.unwrap();
         });
-        let entry = task::block_on(async { find_async(&dir, "hello").await.unwrap().unwrap() });
+        let entry =
+            crate::async_lib::block_on(async { find_async(&dir, "hello").await.unwrap().unwrap() });
         assert_eq!(
             entry,
             Metadata {

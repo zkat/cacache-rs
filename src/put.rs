@@ -3,11 +3,10 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
-use futures::prelude::*;
-
 use serde_json::Value;
 use ssri::{Algorithm, Integrity};
 
+use crate::async_lib::{AsyncWrite, AsyncWriteExt};
 use crate::content::write;
 use crate::errors::{Error, Internal, Result};
 use crate::index;
@@ -102,8 +101,17 @@ impl AsyncWrite for Writer {
         Pin::new(&mut self.writer).poll_flush(cx)
     }
 
+    #[cfg(feature = "async-std")]
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.writer).poll_close(cx)
+    }
+
+    #[cfg(feature = "tokio")]
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        cx: &mut TaskContext<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.writer).poll_shutdown(cx)
     }
 }
 
@@ -423,7 +431,12 @@ impl SyncWriter {
 
 #[cfg(test)]
 mod tests {
-    #[async_attributes::test]
+    #[cfg(feature = "async-std")]
+    use async_attributes::test as async_test;
+    #[cfg(feature = "tokio")]
+    use tokio::test as async_test;
+
+    #[async_test]
     async fn round_trip() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
