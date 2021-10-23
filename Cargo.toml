@@ -8,10 +8,7 @@ license = "Apache-2.0"
 repository = "https://github.com/zkat/cacache-rs"
 homepage = "https://github.com/zkat/cacache-rs"
 readme = "README.md"
-categories = [
-    "caching",
-    "filesystem"
-]
+categories = ["caching", "filesystem"]
 
 [dependencies]
 ssri = "7.0.0"
@@ -25,15 +22,28 @@ serde = "1.0.130"
 serde_derive = "1.0.130"
 walkdir = "2.3.2"
 either = "1.6.1"
-async-std = { version = "1.10.0", features = ["unstable"] }
+async-std = { version = "1.10.0", features = ["unstable"], optional = true }
+tokio = { version = "1.12.0", features = [
+    "fs",
+    "io-util",
+    "macros",
+    "rt",
+    "rt-multi-thread",
+], optional = true }
+tokio-stream = { version = "0.1.7", features = ["io-util"], optional = true }
 thiserror = "1.0.29"
 futures = "0.3.17"
 memmap = "0.7.0"
 
 [dev-dependencies]
+async-std = { version = "1.10.0", features = ["unstable"] }
 async-attributes = "1.1.2"
 criterion = "0.3.5"
 
 [[bench]]
 name = "benchmarks"
 harness = false
+
+[features]
+default = ["async-std"]
+tokio-runtime = ["tokio", "tokio-stream"]

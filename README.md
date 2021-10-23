@@ -38,7 +38,7 @@ Minimum supported Rust version is `1.43.0`.
 
 ## Features
 
-- First-class async support, using [`async-std`](https://crates.io/crates/async-std) as its runtime. Sync APIs are available but secondary
+- First-class async support, using either [`async-std`](https://crates.io/crates/async-std) or [`tokio`](https://crates.io/crates/tokio) as its runtime. Sync APIs are available but secondary
 - `std::fs`-style API
 - Extraction by key or by content address (shasum, etc)
 - [Subresource Integrity](#integrity) web standard support

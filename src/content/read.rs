@@ -3,10 +3,9 @@ use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use async_std;
-use futures::prelude::*;
 use ssri::{Algorithm, Integrity, IntegrityChecker};
 
+use crate::async_lib::AsyncRead;
 use crate::content::path;
 use crate::errors::{Internal, Result};
 
@@ -30,11 +29,12 @@ impl Reader {
 }
 
 pub struct AsyncReader {
-    fd: async_std::fs::File,
+    fd: crate::async_lib::File,
     checker: IntegrityChecker,
 }
 
 impl AsyncRead for AsyncReader {
+    #[cfg(feature = "async-std")]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -43,6 +43,22 @@ impl AsyncRead for AsyncReader {
         let amt = futures::ready!(Pin::new(&mut self.fd).poll_read(cx, buf))?;
         self.checker.input(&buf[..amt]);
         Poll::Ready(Ok(amt))
+    }
+
+    #[cfg(feature = "tokio")]
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> Poll<tokio::io::Result<()>> {
+        let pre_len = buf.filled().len();
+        futures::ready!(Pin::new(&mut self.fd).poll_read(cx, buf))?;
+        let post_len = buf.filled().len();
+        if post_len - pre_len == 0 {
+            return Poll::Ready(Ok(()));
+        }
+        self.checker.input(&buf.filled()[pre_len..]);
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -63,7 +79,7 @@ pub fn open(cache: &Path, sri: Integrity) -> Result<Reader> {
 pub async fn open_async(cache: &Path, sri: Integrity) -> Result<AsyncReader> {
     let cpath = path::content_path(cache, &sri);
     Ok(AsyncReader {
-        fd: async_std::fs::File::open(cpath).await.to_internal()?,
+        fd: crate::async_lib::File::open(cpath).await.to_internal()?,
         checker: IntegrityChecker::new(sri),
     })
 }
@@ -77,7 +93,7 @@ pub fn read(cache: &Path, sri: &Integrity) -> Result<Vec<u8>> {
 
 pub async fn read_async<'a>(cache: &'a Path, sri: &'a Integrity) -> Result<Vec<u8>> {
     let cpath = path::content_path(cache, sri);
-    let ret = async_std::fs::read(&cpath).await.to_internal()?;
+    let ret = crate::async_lib::read(&cpath).await.to_internal()?;
     sri.check(&ret)?;
     Ok(ret)
 }
@@ -92,8 +108,8 @@ pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64> {
 
 pub async fn copy_async<'a>(cache: &'a Path, sri: &'a Integrity, to: &'a Path) -> Result<u64> {
     let cpath = path::content_path(cache, sri);
-    let ret = async_std::fs::copy(&cpath, to).await.to_internal()?;
-    let data = async_std::fs::read(cpath).await.to_internal()?;
+    let ret = crate::async_lib::copy(&cpath, to).await.to_internal()?;
+    let data = crate::async_lib::read(cpath).await.to_internal()?;
     sri.check(data)?;
     Ok(ret)
 }
@@ -107,7 +123,7 @@ pub fn has_content(cache: &Path, sri: &Integrity) -> Option<Integrity> {
 }
 
 pub async fn has_content_async(cache: &Path, sri: &Integrity) -> Option<Integrity> {
-    if async_std::fs::metadata(path::content_path(cache, sri))
+    if crate::async_lib::metadata(path::content_path(cache, sri))
         .await
         .is_ok()
     {
