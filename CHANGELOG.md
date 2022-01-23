@@ -1,5 +1,16 @@
 # `cacache` Release Changelog
 
+<a name="10.0.0"></a>
+## 10.0.0 (2022-01-23)
+
+### Breaking Changes
+
+* **msrv:** bump MSRV to 1.54, thanks to socket ([323ecacc](https://github.com/zkat/cacache-rs/commit/323ecacc3b1e9b70bfac5f3e0838b099e9c6f8a4))
+
+### Bug Fixes
+
+* **security:** replaced memmap with memmap2 (#30) ([03d4596b](https://github.com/zkat/cacache-rs/commit/03d4596baa330a057011e5238983095c08039360))
+
 <a name="9.0.0"></a>
 ## 9.0.0 (2021-09-16)
 
