@@ -34,9 +34,10 @@ impl Writer {
             .recursive(true)
             .create(&tmp_path)
             .to_internal()?;
-        let tmpfile = NamedTempFile::new_in(tmp_path).to_internal()?;
+        let mut tmpfile = NamedTempFile::new_in(tmp_path).to_internal()?;
         let mmap = if let Some(size) = size {
             if size <= MAX_MMAP_SIZE {
+                tmpfile.as_file_mut().set_len(size as u64).to_internal()?;
                 unsafe { MmapMut::map_mut(tmpfile.as_file()).ok() }
             } else {
                 None

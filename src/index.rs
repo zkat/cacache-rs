@@ -312,15 +312,14 @@ fn bucket_entries(bucket: &Path) -> InternalResult<Vec<SerializableMetadata>> {
 
 async fn bucket_entries_async(bucket: &Path) -> InternalResult<Vec<SerializableMetadata>> {
     let file_result = afs::File::open(bucket).await;
-    let file;
-    if let Err(err) = file_result {
+    let file = if let Err(err) = file_result {
         if err.kind() == ErrorKind::NotFound {
             return Ok(Vec::new());
         }
         return Err(err).to_internal()?;
     } else {
-        file = file_result.unwrap();
-    }
+        file_result.unwrap()
+    };
     let mut vec = Vec::new();
     let mut lines = BufReader::new(file).lines();
     while let Some(line) = lines.next().await {
