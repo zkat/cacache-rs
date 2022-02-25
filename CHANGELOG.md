@@ -1,5 +1,14 @@
 # `cacache` Release Changelog
 
+<a name="10.0.1"></a>
+## 10.0.1 (2022-02-25)
+
+### Bug Fixes
+
+* **mmap:** mmap needs equal buffer lengths (#33) ([684a3e8a](https://github.com/zkat/cacache-rs/commit/684a3e8a682d7ddc60a18671bc182373f2bc6c28))
+
+# `cacache` Release Changelog
+
 <a name="10.0.0"></a>
 ## 10.0.0 (2022-01-23)
 
