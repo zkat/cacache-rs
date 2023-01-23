@@ -119,10 +119,7 @@ impl AsyncWriter {
             .create(&tmp_path)
             .await
             .to_internal()?;
-        let tmpfile = crate::async_lib::unwrap_joinhandle(crate::async_lib::spawn_blocking(|| {
-        let mut tmpfile = task::spawn_blocking(|| NamedTempFile::new_in(tmp_path))
-            .await
-            .to_internal()?;
+        let mut tmpfile = crate::async_lib::create_named_tempfile(tmp_path).await?;
         let mmap = if let Some(size) = size {
             if size <= MAX_MMAP_SIZE {
                 tmpfile.as_file_mut().set_len(size as u64).to_internal()?;
@@ -384,6 +381,12 @@ mod tests {
     use super::*;
     use crate::async_lib::AsyncWriteExt;
     use tempfile;
+
+    #[cfg(feature = "async-std")]
+    use async_attributes::test as async_test;
+    #[cfg(feature = "tokio")]
+    use tokio::test as async_test;
+
     #[test]
     fn basic_write() {
         let tmp = tempfile::tempdir().unwrap();
@@ -398,21 +401,19 @@ mod tests {
         );
     }
 
-    #[test]
-    fn basic_async_write() {
+    #[async_test]
+    async fn basic_async_write() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        crate::async_lib::block_on(async {
-            let mut writer = AsyncWriter::new(&dir, Algorithm::Sha256, None)
-                .await
-                .unwrap();
-            writer.write_all(b"hello world").await.unwrap();
-            let sri = writer.close().await.unwrap();
-            assert_eq!(sri.to_string(), Integrity::from(b"hello world").to_string());
-            assert_eq!(
-                std::fs::read(path::content_path(&dir, &sri)).unwrap(),
-                b"hello world"
-            );
-        });
+        let mut writer = AsyncWriter::new(&dir, Algorithm::Sha256, None)
+            .await
+            .unwrap();
+        writer.write_all(b"hello world").await.unwrap();
+        let sri = writer.close().await.unwrap();
+        assert_eq!(sri.to_string(), Integrity::from(b"hello world").to_string());
+        assert_eq!(
+            std::fs::read(path::content_path(&dir, &sri)).unwrap(),
+            b"hello world"
+        );
     }
 }

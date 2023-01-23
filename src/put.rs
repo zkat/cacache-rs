@@ -468,7 +468,7 @@ mod tests {
         assert_eq!(result, original, "we did not read back what we wrote");
     }
 
-    #[async_attributes::test]
+    #[async_test]
     async fn hash_write_async() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();

@@ -8,24 +8,23 @@ license = "Apache-2.0"
 repository = "https://github.com/zkat/cacache-rs"
 homepage = "https://github.com/zkat/cacache-rs"
 readme = "README.md"
-categories = [
-    "caching",
-    "filesystem"
-]
+categories = ["caching", "filesystem"]
 
 [dependencies]
-ssri = "7.0.0"
+async-attributes = { version = "1.1.2", optional = true }
+async-std = { version = "1.10.0", features = ["unstable"], optional = true }
+digest = "0.10.6"
+either = "1.6.1"
+futures = "0.3.17"
 hex = "0.4.3"
-tempfile = "3.2.0"
-sha-1 = "0.9.8"
-sha2 = "0.9.8"
-digest = "0.9.0"
-serde_json = "1.0.68"
+memmap2 = "0.5.8"
 serde = "1.0.130"
 serde_derive = "1.0.130"
-walkdir = "2.3.2"
-either = "1.6.1"
-async-std = { version = "1.10.0", features = ["unstable"] }
+serde_json = "1.0.68"
+sha1 = "0.10.5"
+sha2 = "0.10.6"
+ssri = "7.0.0"
+tempfile = "3.2.0"
 thiserror = "1.0.29"
 tokio = { version = "1.12.0", features = [
     "fs",
@@ -35,20 +34,15 @@ tokio = { version = "1.12.0", features = [
     "rt-multi-thread",
 ], optional = true }
 tokio-stream = { version = "0.1.7", features = ["io-util"], optional = true }
-
-[features]
-futures = "0.3.17"
-memmap2 = "0.5"
+walkdir = "2.3.2"
 
 [dev-dependencies]
-async-std = { version = "1.10.0", features = ["unstable"] }
-async-attributes = "1.1.2"
-criterion = "0.3.5"
+criterion = "0.4.0"
 
 [[bench]]
 name = "benchmarks"
 harness = false
 
 [features]
-default = ["async-std"]
+default = ["async-std", "async-attributes"]
 tokio-runtime = ["tokio", "tokio-stream"]

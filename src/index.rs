@@ -341,6 +341,11 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    #[cfg(feature = "async-std")]
+    use async_attributes::test as async_test;
+    #[cfg(feature = "tokio")]
+    use tokio::test as async_test;
+
     const MOCK_ENTRY: &str = "\n251d18a2b33264ea8655695fd23c88bd874cdea2c3dc9d8f9b7596717ad30fec\t{\"key\":\"hello\",\"integrity\":\"sha1-deadbeef\",\"time\":1234567,\"size\":0,\"metadata\":null}";
 
     #[test]
@@ -355,14 +360,14 @@ mod tests {
         assert_eq!(entry, MOCK_ENTRY);
     }
 
-    #[test]
-    fn insert_async_basic() {
+    #[async_test]
+    async fn insert_async_basic() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
         let opts = WriteOpts::new().integrity(sri).time(time);
-        crate::async_lib::block_on(async {
+        futures::executor::block_on(async {
             insert_async(&dir, "hello", opts).await.unwrap();
         });
         let entry = std::fs::read_to_string(bucket_path(&dir, "hello")).unwrap();
@@ -410,15 +415,15 @@ mod tests {
         assert_eq!(find(&dir, "hello").unwrap(), None);
     }
 
-    #[test]
-    fn delete_async_basic() {
+    #[async_test]
+    async fn delete_async_basic() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
         let opts = WriteOpts::new().integrity(sri).time(time);
         insert(&dir, "hello", opts).unwrap();
-        crate::async_lib::block_on(async {
+        futures::executor::block_on(async {
             delete_async(&dir, "hello").await.unwrap();
         });
         assert_eq!(find(&dir, "hello").unwrap(), None);
@@ -445,18 +450,19 @@ mod tests {
         );
     }
 
-    #[test]
-    fn round_trip_async() {
+    #[async_test]
+    async fn round_trip_async() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
         let sri: Integrity = "sha1-deadbeef".parse().unwrap();
         let time = 1_234_567;
         let opts = WriteOpts::new().integrity(sri.clone()).time(time);
-        crate::async_lib::block_on(async {
+        futures::executor::block_on(async {
             insert_async(&dir, "hello", opts).await.unwrap();
         });
-        let entry =
-            crate::async_lib::block_on(async { find_async(&dir, "hello").await.unwrap().unwrap() });
+        let entry = futures::executor::block_on(async {
+            find_async(&dir, "hello").await.unwrap().unwrap()
+        });
         assert_eq!(
             entry,
             Metadata {

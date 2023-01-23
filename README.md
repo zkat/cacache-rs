@@ -55,6 +55,13 @@ Minimum supported Rust version is `1.43.0`.
 - Cross-platform: Windows and case-(in)sensitive filesystem support
 - Punches nazis
 
+`async-std` is the default async runtime. To use `tokio` instead, turn off default features and enable the `tokio-runtime` feature, like this:
+
+```toml
+[dependencies]
+cacache = { version = "*", default-features = false, features = ["tokio-runtime"] }
+```
+
 ## Contributing
 
 The cacache team enthusiastically welcomes contributions and project participation! There's a bunch of things you can do if you want to contribute! The [Contributor Guide](CONTRIBUTING.md) has all the information you need for everything from reporting bugs to contributing entire new features. Please don't hesitate to jump in if you'd like to, or even ask us questions if something isn't clear.

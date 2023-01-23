@@ -89,24 +89,8 @@ pub use async_std::task::spawn_blocking;
 #[cfg(feature = "tokio")]
 pub use tokio::task::spawn_blocking;
 
-#[cfg(all(test, feature = "async-std"))]
-pub use async_std::task::block_on;
-#[cfg(all(test, feature = "tokio"))]
-#[inline]
-pub fn block_on<F, T>(future: F) -> T
-where
-    F: std::future::Future<Output = T>,
-{
-    tokio::runtime::Runtime::new().unwrap().block_on(future)
-}
-
 #[cfg(feature = "async-std")]
 pub use async_std::task::JoinHandle;
-#[cfg(feature = "async-std")]
-#[inline]
-pub async fn unwrap_joinhandle<R>(handle: async_std::task::JoinHandle<R>) -> R {
-    handle.await
-}
 #[cfg(feature = "async-std")]
 #[inline]
 pub fn unwrap_joinhandle_value<T>(value: T) -> T {
@@ -116,11 +100,26 @@ pub fn unwrap_joinhandle_value<T>(value: T) -> T {
 pub use tokio::task::JoinHandle;
 #[cfg(feature = "tokio")]
 #[inline]
-pub async fn unwrap_joinhandle<R>(handle: tokio::task::JoinHandle<R>) -> R {
-    handle.await.unwrap()
-}
-#[cfg(feature = "tokio")]
-#[inline]
 pub fn unwrap_joinhandle_value<T>(value: Result<T, tokio::task::JoinError>) -> T {
     value.unwrap()
+}
+
+use crate::errors::{Internal, InternalResult};
+use tempfile::NamedTempFile;
+
+#[cfg(feature = "async-std")]
+#[inline]
+pub async fn create_named_tempfile(tmp_path: std::path::PathBuf) -> InternalResult<NamedTempFile> {
+    spawn_blocking(|| NamedTempFile::new_in(tmp_path))
+        .await
+        .to_internal()
+}
+
+#[cfg(feature = "tokio")]
+#[inline]
+pub async fn create_named_tempfile(tmp_path: std::path::PathBuf) -> InternalResult<NamedTempFile> {
+    let tmpfile = spawn_blocking(|| NamedTempFile::new_in(tmp_path))
+        .await
+        .to_internal()?;
+    tmpfile.to_internal()
 }

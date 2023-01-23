@@ -1,4 +1,19 @@
-use async_std::{fs as afs, task};
+#[cfg(feature = "async-std")]
+use async_std::fs as afs;
+#[cfg(all(test, feature = "tokio"))]
+use tokio::fs as afs;
+
+#[cfg(all(test, feature = "async-std"))]
+pub use async_std::task::block_on;
+#[cfg(all(test, feature = "tokio"))]
+#[inline]
+pub fn block_on<F, T>(future: F) -> T
+where
+    F: std::future::Future<Output = T>,
+{
+    tokio::runtime::Runtime::new().unwrap().block_on(future)
+}
+
 use std::fs::{self, File};
 use std::io::prelude::*;
 
@@ -47,7 +62,7 @@ fn baseline_read_async(c: &mut Criterion) {
     fd.write_all(data).unwrap();
     drop(fd);
     c.bench_function("baseline_read_async", move |b| {
-        b.iter(|| task::block_on(afs::read(&path)))
+        b.iter(|| block_on(afs::read(&path)))
     });
 }
 
@@ -66,7 +81,7 @@ fn baseline_read_many_async(c: &mut Criterion) {
     c.bench_function("baseline_read_many_async", move |b| {
         b.iter(|| {
             let tasks = paths.iter().map(|path| afs::read(black_box(path)));
-            task::block_on(futures::future::join_all(tasks));
+            block_on(futures::future::join_all(tasks));
         })
     });
 }
@@ -137,7 +152,7 @@ fn read_hash_many_async(c: &mut Criterion) {
             let tasks = sris
                 .iter()
                 .map(|sri| cacache::read_hash(black_box(&cache), black_box(sri)));
-            task::block_on(futures::future::join_all(tasks));
+            block_on(futures::future::join_all(tasks));
         })
     });
 }
@@ -148,7 +163,7 @@ fn read_hash_async(c: &mut Criterion) {
     let data = b"hello world".to_vec();
     let sri = cacache::write_sync(&cache, "hello", data).unwrap();
     c.bench_function("get::data_hash", move |b| {
-        b.iter(|| task::block_on(cacache::read_hash(black_box(&cache), black_box(&sri))).unwrap())
+        b.iter(|| block_on(cacache::read_hash(black_box(&cache), black_box(&sri))).unwrap())
     });
 }
 
@@ -158,7 +173,7 @@ fn read_async(c: &mut Criterion) {
     let data = b"hello world".to_vec();
     cacache::write_sync(&cache, "hello", data).unwrap();
     c.bench_function("get::data", move |b| {
-        b.iter(|| task::block_on(cacache::read(black_box(&cache), black_box("hello"))).unwrap())
+        b.iter(|| block_on(cacache::read(black_box(&cache), black_box("hello"))).unwrap())
     });
 }
 
@@ -168,7 +183,7 @@ fn read_hash_async_big_data(c: &mut Criterion) {
     let data = vec![1; 1024 * 1024 * 5];
     let sri = cacache::write_sync(&cache, "hello", data).unwrap();
     c.bench_function("get::data_big_data", move |b| {
-        b.iter(|| task::block_on(cacache::read_hash(black_box(&cache), black_box(&sri))).unwrap())
+        b.iter(|| block_on(cacache::read_hash(black_box(&cache), black_box(&sri))).unwrap())
     });
 }
 
@@ -179,7 +194,7 @@ fn write_hash_async(c: &mut Criterion) {
         b.iter_custom(|iters| {
             let start = std::time::Instant::now();
             for i in 0..iters {
-                task::block_on(cacache::write_hash(&cache, format!("hello world{}", i))).unwrap();
+                block_on(cacache::write_hash(&cache, format!("hello world{}", i))).unwrap();
             }
             start.elapsed()
         })
