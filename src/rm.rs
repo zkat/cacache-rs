@@ -66,7 +66,7 @@ where
 /// }
 /// ```
 pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
-    Ok(rm::rm_async(cache.as_ref(), sri).await?)
+    rm::rm_async(cache.as_ref(), sri).await
 }
 
 /// Removes entire contents of the cache, including temporary files, the entry

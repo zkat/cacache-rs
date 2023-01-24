@@ -26,7 +26,7 @@ fn baseline_read_many_sync(c: &mut Criterion) {
         .collect();
     let data = b"hello world";
     for path in paths.iter() {
-        let mut fd = File::create(&path).unwrap();
+        let mut fd = File::create(path).unwrap();
         fd.write_all(data).unwrap();
         drop(fd);
     }
@@ -59,7 +59,7 @@ fn baseline_read_many_async(c: &mut Criterion) {
         .collect();
     let data = b"hello world";
     for path in paths.iter() {
-        let mut fd = File::create(&path).unwrap();
+        let mut fd = File::create(path).unwrap();
         fd.write_all(data).unwrap();
         drop(fd);
     }

@@ -169,7 +169,7 @@ pub async fn read_hash<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>>
 where
     P: AsRef<Path>,
 {
-    Ok(read::read_async(cache.as_ref(), sri).await?)
+    read::read_async(cache.as_ref(), sri).await
 }
 
 /// Copies cache data to a specified location. Returns the number of bytes
@@ -235,7 +235,7 @@ where
     P: AsRef<Path>,
     K: AsRef<str>,
 {
-    Ok(index::find_async(cache.as_ref(), key.as_ref()).await?)
+    index::find_async(cache.as_ref(), key.as_ref()).await
 }
 
 /// Returns true if the given hash exists in the cache.
@@ -584,9 +584,9 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path();
         let dest = dir.join("data");
-        crate::write_sync(&dir, "my-key", b"hello world").unwrap();
+        crate::write_sync(dir, "my-key", b"hello world").unwrap();
 
-        crate::copy_sync(&dir, "my-key", &dest).unwrap();
+        crate::copy_sync(dir, "my-key", &dest).unwrap();
         let data = fs::read(&dest).unwrap();
         assert_eq!(data, b"hello world");
     }
@@ -596,9 +596,9 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path();
         let dest = dir.join("data");
-        let sri = crate::write_sync(&dir, "my-key", b"hello world").unwrap();
+        let sri = crate::write_sync(dir, "my-key", b"hello world").unwrap();
 
-        crate::copy_hash_sync(&dir, &sri, &dest).unwrap();
+        crate::copy_hash_sync(dir, &sri, &dest).unwrap();
         let data = fs::read(&dest).unwrap();
         assert_eq!(data, b"hello world");
     }

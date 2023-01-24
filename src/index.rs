@@ -267,13 +267,13 @@ fn bucket_path(cache: &Path, key: &str) -> PathBuf {
 
 fn hash_key(key: &str) -> String {
     let mut hasher = Sha1::new();
-    hasher.update(&key);
+    hasher.update(key);
     hex::encode(hasher.finalize())
 }
 
 fn hash_entry(key: &str) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(&key);
+    hasher.update(key);
     hex::encode(hasher.finalize())
 }
 
