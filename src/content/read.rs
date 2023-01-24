@@ -70,7 +70,7 @@ pub async fn open_async(cache: &Path, sri: Integrity) -> Result<AsyncReader> {
 
 pub fn read(cache: &Path, sri: &Integrity) -> Result<Vec<u8>> {
     let cpath = path::content_path(cache, sri);
-    let ret = fs::read(&cpath).to_internal()?;
+    let ret = fs::read(cpath).to_internal()?;
     sri.check(&ret)?;
     Ok(ret)
 }
