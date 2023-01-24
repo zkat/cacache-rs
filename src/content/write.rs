@@ -10,6 +10,7 @@ use async_std::task::{self, Context, JoinHandle, Poll};
 use futures::io::AsyncWrite;
 use futures::prelude::*;
 use memmap2::MmapMut;
+// use memmap::MmapMut;
 use ssri::{Algorithm, Integrity, IntegrityOpts};
 use tempfile::NamedTempFile;
 
@@ -121,11 +122,12 @@ impl AsyncWriter {
             .create(&tmp_path)
             .await
             .to_internal()?;
-        let tmpfile = task::spawn_blocking(|| NamedTempFile::new_in(tmp_path))
+        let mut tmpfile = task::spawn_blocking(|| NamedTempFile::new_in(tmp_path))
             .await
             .to_internal()?;
         let mmap = if let Some(size) = size {
             if size <= MAX_MMAP_SIZE {
+                tmpfile.as_file_mut().set_len(size as u64).to_internal()?;
                 unsafe { MmapMut::map_mut(tmpfile.as_file()).ok() }
             } else {
                 None

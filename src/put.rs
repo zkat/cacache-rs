@@ -440,4 +440,34 @@ mod tests {
         let data = crate::read_sync(&dir, "hello").unwrap();
         assert_eq!(data, b"hello");
     }
+
+    #[test]
+    fn hash_write_sync() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let original = format!("hello world{}", 5);
+        let integrity = crate::write_hash_sync(&dir, &original)
+            .expect("should be able to write a hash synchronously");
+        let bytes = crate::read_hash_sync(&dir, &integrity)
+            .expect("should be able to read the data we just wrote");
+        let result =
+            String::from_utf8(bytes).expect("we wrote valid utf8 but did not read valid utf8 back");
+        assert_eq!(result, original, "we did not read back what we wrote");
+    }
+
+    #[async_attributes::test]
+    async fn hash_write_async() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let original = format!("hello world{}", 12);
+        let integrity = crate::write_hash(&dir, &original)
+            .await
+            .expect("should be able to write a hash asynchronously");
+        let bytes = crate::read_hash(&dir, &integrity)
+            .await
+            .expect("should be able to read back what we wrote");
+        let result =
+            String::from_utf8(bytes).expect("we wrote valid utf8 but did not read valid utf8 back");
+        assert_eq!(result, original, "we did not read back what we wrote");
+    }
 }
