@@ -5,12 +5,12 @@ use std::pin::Pin;
 use std::sync::Mutex;
 use std::task::{Context, Poll};
 
-use crate::async_lib::{AsyncWrite, JoinHandle};
 use futures::prelude::*;
 use memmap2::MmapMut;
 use ssri::{Algorithm, Integrity, IntegrityOpts};
 use tempfile::NamedTempFile;
 
+use crate::async_lib::{AsyncWrite, JoinHandle};
 use crate::content::path;
 use crate::errors::{Internal, Result};
 
