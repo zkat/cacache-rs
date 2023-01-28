@@ -12,7 +12,7 @@ pub fn content_path(cache: &Path, sri: &Integrity) -> PathBuf {
     let mut path = PathBuf::new();
     let (algo, hex) = sri.to_hex();
     path.push(cache);
-    path.push(format!("content-v{}", CONTENT_VERSION));
+    path.push(format!("content-v{CONTENT_VERSION}"));
     path.push(algo.to_string());
     path.push(&hex[0..2]);
     path.push(&hex[2..4]);
@@ -32,7 +32,7 @@ mod tests {
         let cpath = content_path(Path::new("~/.my-cache"), &sri);
         let mut wanted = PathBuf::new();
         wanted.push("~/.my-cache");
-        wanted.push(format!("content-v{}", CONTENT_VERSION));
+        wanted.push(format!("content-v{CONTENT_VERSION}"));
         wanted.push("sha256");
         wanted.push("b9");
         wanted.push("4d");

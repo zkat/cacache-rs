@@ -43,7 +43,7 @@ fn baseline_read_many_sync(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let paths: Vec<_> = (0..)
         .take(NUM_REPEATS)
-        .map(|i| tmp.path().join(format!("test_file_{}", i)))
+        .map(|i| tmp.path().join(format!("test_file_{i}")))
         .collect();
     let data = b"hello world";
     for path in paths.iter() {
@@ -76,7 +76,7 @@ fn baseline_read_many_async(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let paths: Vec<_> = (0..)
         .take(NUM_REPEATS)
-        .map(|i| tmp.path().join(format!("test_file_{}", i)))
+        .map(|i| tmp.path().join(format!("test_file_{i}")))
         .collect();
     let data = b"hello world";
     for path in paths.iter() {
@@ -107,7 +107,7 @@ fn read_hash_many_sync(c: &mut Criterion) {
     let cache = tmp.path().to_owned();
     let data: Vec<_> = (0..)
         .take(NUM_REPEATS)
-        .map(|i| format!("test_file_{}", i))
+        .map(|i| format!("test_file_{i}"))
         .collect();
     let sris: Vec<_> = data
         .iter()
@@ -147,7 +147,7 @@ fn read_hash_many_async(c: &mut Criterion) {
     let cache = tmp.path().to_owned();
     let data: Vec<_> = (0..)
         .take(NUM_REPEATS)
-        .map(|i| format!("test_file_{}", i))
+        .map(|i| format!("test_file_{i}"))
         .collect();
     let sris: Vec<_> = data
         .iter()
@@ -200,7 +200,7 @@ fn write_hash_async(c: &mut Criterion) {
         b.iter_custom(|iters| {
             let start = std::time::Instant::now();
             for i in 0..iters {
-                block_on(cacache::write_hash(&cache, format!("hello world{}", i))).unwrap();
+                block_on(cacache::write_hash(&cache, format!("hello world{i}"))).unwrap();
             }
             start.elapsed()
         })

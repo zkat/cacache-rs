@@ -74,19 +74,19 @@ pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
         size: opts.size.unwrap_or(0),
         metadata: opts.metadata.unwrap_or(serde_json::Value::Null),
     })
-    .with_context(|| format!("Failed to serialize entry with key `{}`", key))?;
+    .with_context(|| format!("Failed to serialize entry with key `{key}`"))?;
 
     let mut buck = OpenOptions::new()
         .create(true)
         .append(true)
         .open(&bucket)
-        .with_context(|| format!("Failed to create or open index bucket at {:?}", bucket))?;
+        .with_context(|| format!("Failed to create or open index bucket at {bucket:?}"))?;
 
     let out = format!("\n{}\t{}", hash_entry(&stringified), stringified);
     buck.write_all(out.as_bytes())
-        .with_context(|| format!("Failed to write to index bucket at {:?}", bucket))?;
+        .with_context(|| format!("Failed to write to index bucket at {bucket:?}"))?;
     buck.flush()
-        .with_context(|| format!("Failed to flush bucket at {:?}", bucket))?;
+        .with_context(|| format!("Failed to flush bucket at {bucket:?}"))?;
     Ok(opts
         .sri
         .or_else(|| "sha1-deadbeef".parse::<Integrity>().ok())
@@ -110,22 +110,22 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) ->
         size: opts.size.unwrap_or(0),
         metadata: opts.metadata.unwrap_or(serde_json::Value::Null),
     })
-    .with_context(|| format!("Failed to serialize entry with key `{}`", key))?;
+    .with_context(|| format!("Failed to serialize entry with key `{key}`"))?;
 
     let mut buck = crate::async_lib::OpenOptions::new()
         .create(true)
         .append(true)
         .open(&bucket)
         .await
-        .with_context(|| format!("Failed to create or open index bucket at {:?}", bucket))?;
+        .with_context(|| format!("Failed to create or open index bucket at {bucket:?}"))?;
 
     let out = format!("\n{}\t{}", hash_entry(&stringified), stringified);
     buck.write_all(out.as_bytes())
         .await
-        .with_context(|| format!("Failed to write to index bucket at {:?}", bucket))?;
+        .with_context(|| format!("Failed to write to index bucket at {bucket:?}"))?;
     buck.flush()
         .await
-        .with_context(|| format!("Failed to flush bucket at {:?}", bucket))?;
+        .with_context(|| format!("Failed to flush bucket at {bucket:?}"))?;
     Ok(opts
         .sri
         .or_else(|| "sha1-deadbeef".parse::<Integrity>().ok())
@@ -135,7 +135,7 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) ->
 pub fn find(cache: &Path, key: &str) -> Result<Option<Metadata>> {
     let bucket = bucket_path(cache, key);
     Ok(bucket_entries(&bucket)
-        .with_context(|| format!("Failed to read index bucket entries from {:?}", bucket))?
+        .with_context(|| format!("Failed to read index bucket entries from {bucket:?}"))?
         .into_iter()
         .fold(None, |acc, entry| {
             if entry.key == key {
@@ -164,7 +164,7 @@ pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Metadata>> {
     let bucket = bucket_path(cache, key);
     Ok(bucket_entries_async(&bucket)
         .await
-        .with_context(|| format!("Failed to read index bucket entries from {:?}", bucket))?
+        .with_context(|| format!("Failed to read index bucket entries from {bucket:?}"))?
         .into_iter()
         .fold(None, |acc, entry| {
             if entry.key == key {
@@ -220,7 +220,7 @@ pub async fn delete_async(cache: &Path, key: &str) -> Result<()> {
 }
 
 pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Metadata>> {
-    WalkDir::new(cache.join(format!("index-v{}", INDEX_VERSION)))
+    WalkDir::new(cache.join(format!("index-v{INDEX_VERSION}")))
         .into_iter()
         .map(|bucket| {
             let bucket = bucket.to_internal()?;
@@ -257,7 +257,7 @@ pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Metadata>> {
 fn bucket_path(cache: &Path, key: &str) -> PathBuf {
     let hashed = hash_key(key);
     cache
-        .join(format!("index-v{}", INDEX_VERSION))
+        .join(format!("index-v{INDEX_VERSION}"))
         .join(&hashed[0..2])
         .join(&hashed[2..4])
         .join(&hashed[4..])
