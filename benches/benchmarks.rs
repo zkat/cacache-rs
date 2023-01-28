@@ -5,13 +5,19 @@ use tokio::fs as afs;
 
 #[cfg(all(test, feature = "async-std"))]
 pub use async_std::task::block_on;
+
+#[cfg(all(test, feature = "tokio"))]
+lazy_static::lazy_static! {
+    static ref TOKIO_RUNTIME: tokio::runtime::Runtime = tokio::runtime::Runtime::new().unwrap();
+}
+
 #[cfg(all(test, feature = "tokio"))]
 #[inline]
 pub fn block_on<F, T>(future: F) -> T
 where
     F: std::future::Future<Output = T>,
 {
-    tokio::runtime::Runtime::new().unwrap().block_on(future)
+    TOKIO_RUNTIME.block_on(future)
 }
 
 use std::fs::{self, File};
