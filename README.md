@@ -38,7 +38,7 @@ Minimum supported Rust version is `1.43.0`.
 
 ## Features
 
-- First-class async support, using [`async-std`](https://crates.io/crates/async-std) as its runtime. Sync APIs are available but secondary
+- First-class async support, using either [`async-std`](https://crates.io/crates/async-std) or [`tokio`](https://crates.io/crates/tokio) as its runtime. Sync APIs are available but secondary
 - `std::fs`-style API
 - Extraction by key or by content address (shasum, etc)
 - [Subresource Integrity](#integrity) web standard support
@@ -54,6 +54,13 @@ Minimum supported Rust version is `1.43.0`.
 - Arbitrary metadata storage
 - Cross-platform: Windows and case-(in)sensitive filesystem support
 - Punches nazis
+
+`async-std` is the default async runtime. To use `tokio` instead, turn off default features and enable the `tokio-runtime` feature, like this:
+
+```toml
+[dependencies]
+cacache = { version = "*", default-features = false, features = ["tokio-runtime"] }
+```
 
 ## Contributing
 

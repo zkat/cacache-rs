@@ -3,16 +3,14 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Mutex;
+use std::task::{Context, Poll};
 
-use async_std::fs as afs;
-use async_std::future::Future;
-use async_std::task::{self, Context, JoinHandle, Poll};
-use futures::io::AsyncWrite;
 use futures::prelude::*;
 use memmap2::MmapMut;
 use ssri::{Algorithm, Integrity, IntegrityOpts};
 use tempfile::NamedTempFile;
 
+use crate::async_lib::{AsyncWrite, JoinHandle};
 use crate::content::path;
 use crate::errors::{Internal, Result};
 
@@ -116,14 +114,12 @@ impl AsyncWriter {
         let cache_path = cache.to_path_buf();
         let mut tmp_path = cache_path.clone();
         tmp_path.push("tmp");
-        afs::DirBuilder::new()
+        crate::async_lib::DirBuilder::new()
             .recursive(true)
             .create(&tmp_path)
             .await
             .to_internal()?;
-        let mut tmpfile = task::spawn_blocking(|| NamedTempFile::new_in(tmp_path))
-            .await
-            .to_internal()?;
+        let mut tmpfile = crate::async_lib::create_named_tempfile(tmp_path).await?;
         let mmap = if let Some(size) = size {
             if size <= MAX_MMAP_SIZE {
                 tmpfile.as_file_mut().set_len(size as u64).to_internal()?;
@@ -162,7 +158,7 @@ impl AsyncWriter {
                             let cpath = path::content_path(&inner.cache, &sri);
 
                             // Start the operation asynchronously.
-                            *state = State::Busy(task::spawn_blocking(|| {
+                            *state = State::Busy(crate::async_lib::spawn_blocking(|| {
                                 let res = std::fs::DirBuilder::new()
                                     .recursive(true)
                                     // Safe unwrap. cpath always has multiple segments
@@ -204,7 +200,11 @@ impl AsyncWriter {
                         }
                     },
                     // Poll the asynchronous operation the file is currently blocked on.
-                    State::Busy(task) => *state = futures::ready!(Pin::new(task).poll(cx)),
+                    State::Busy(task) => {
+                        *state = crate::async_lib::unwrap_joinhandle_value(futures::ready!(
+                            Pin::new(task).poll(cx)
+                        ))
+                    }
                 }
             }
         })
@@ -255,7 +255,7 @@ impl AsyncWrite for AsyncWriter {
                         inner.buf[..buf.len()].copy_from_slice(buf);
 
                         // Start the operation asynchronously.
-                        *state = State::Busy(task::spawn_blocking(|| {
+                        *state = State::Busy(crate::async_lib::spawn_blocking(|| {
                             inner.builder.input(&inner.buf);
                             if let Some(mmap) = &mut inner.mmap {
                                 mmap.copy_from_slice(&inner.buf);
@@ -270,7 +270,12 @@ impl AsyncWrite for AsyncWriter {
                     }
                 }
                 // Poll the asynchronous operation the file is currently blocked on.
-                State::Busy(task) => *state = futures::ready!(Pin::new(task).poll(cx)),
+                State::Busy(task) => {
+                    *state = crate::async_lib::unwrap_joinhandle_value(futures::ready!(Pin::new(
+                        task
+                    )
+                    .poll(cx)))
+                }
             }
         }
     }
@@ -302,7 +307,7 @@ impl AsyncWrite for AsyncWriter {
                         }
 
                         // Start the operation asynchronously.
-                        *state = State::Busy(task::spawn_blocking(|| {
+                        *state = State::Busy(crate::async_lib::spawn_blocking(|| {
                             let res = inner.tmpfile.flush();
                             inner.last_op = Some(Operation::Flush(res));
                             State::Idle(Some(inner))
@@ -310,12 +315,33 @@ impl AsyncWrite for AsyncWriter {
                     }
                 }
                 // Poll the asynchronous operation the file is currently blocked on.
-                State::Busy(task) => *state = futures::ready!(Pin::new(task).poll(cx)),
+                State::Busy(task) => {
+                    *state = crate::async_lib::unwrap_joinhandle_value(futures::ready!(Pin::new(
+                        task
+                    )
+                    .poll(cx)))
+                }
             }
         }
     }
 
+    #[cfg(feature = "async-std")]
     fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        self.poll_close_impl(cx)
+    }
+
+    #[cfg(feature = "tokio")]
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        self.poll_close_impl(cx)
+    }
+}
+
+impl AsyncWriter {
+    #[inline]
+    fn poll_close_impl(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
         let state = &mut *self.0.lock().unwrap();
 
         loop {
@@ -329,13 +355,18 @@ impl AsyncWrite for AsyncWriter {
                     };
 
                     // Start the operation asynchronously.
-                    *state = State::Busy(task::spawn_blocking(|| {
+                    *state = State::Busy(crate::async_lib::spawn_blocking(|| {
                         drop(inner);
                         State::Idle(None)
                     }));
                 }
                 // Poll the asynchronous operation the file is currently blocked on.
-                State::Busy(task) => *state = futures::ready!(Pin::new(task).poll(cx)),
+                State::Busy(task) => {
+                    *state = crate::async_lib::unwrap_joinhandle_value(futures::ready!(Pin::new(
+                        task
+                    )
+                    .poll(cx)))
+                }
             }
         }
     }
@@ -348,8 +379,14 @@ fn io_error(err: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> std::io
 #[cfg(test)]
 mod tests {
     use super::*;
-    use async_std::task;
+    use crate::async_lib::AsyncWriteExt;
     use tempfile;
+
+    #[cfg(feature = "async-std")]
+    use async_attributes::test as async_test;
+    #[cfg(feature = "tokio")]
+    use tokio::test as async_test;
+
     #[test]
     fn basic_write() {
         let tmp = tempfile::tempdir().unwrap();
@@ -364,21 +401,19 @@ mod tests {
         );
     }
 
-    #[test]
-    fn basic_async_write() {
+    #[async_test]
+    async fn basic_async_write() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        task::block_on(async {
-            let mut writer = AsyncWriter::new(&dir, Algorithm::Sha256, None)
-                .await
-                .unwrap();
-            writer.write_all(b"hello world").await.unwrap();
-            let sri = writer.close().await.unwrap();
-            assert_eq!(sri.to_string(), Integrity::from(b"hello world").to_string());
-            assert_eq!(
-                std::fs::read(path::content_path(&dir, &sri)).unwrap(),
-                b"hello world"
-            );
-        });
+        let mut writer = AsyncWriter::new(&dir, Algorithm::Sha256, None)
+            .await
+            .unwrap();
+        writer.write_all(b"hello world").await.unwrap();
+        let sri = writer.close().await.unwrap();
+        assert_eq!(sri.to_string(), Integrity::from(b"hello world").to_string());
+        assert_eq!(
+            std::fs::read(path::content_path(&dir, &sri)).unwrap(),
+            b"hello world"
+        );
     }
 }

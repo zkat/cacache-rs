@@ -2,8 +2,6 @@
 use std::fs;
 use std::path::Path;
 
-use async_std::fs as afs;
-
 use ssri::Integrity;
 
 use crate::content::rm;
@@ -93,7 +91,9 @@ pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()
 /// ```
 pub async fn clear<P: AsRef<Path>>(cache: P) -> Result<()> {
     for entry in (cache.as_ref().read_dir().to_internal()?).flatten() {
-        afs::remove_dir_all(entry.path()).await.to_internal()?;
+        crate::async_lib::remove_dir_all(entry.path())
+            .await
+            .to_internal()?;
     }
     Ok(())
 }
@@ -182,11 +182,15 @@ pub fn clear_sync<P: AsRef<Path>>(cache: P) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use async_std::task;
 
-    #[test]
-    fn test_remove() {
-        task::block_on(async {
+    #[cfg(feature = "async-std")]
+    use async_attributes::test as async_test;
+    #[cfg(feature = "tokio")]
+    use tokio::test as async_test;
+
+    #[async_test]
+    async fn test_remove() {
+        futures::executor::block_on(async {
             let tmp = tempfile::tempdir().unwrap();
             let dir = tmp.path().to_owned();
             let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
@@ -201,9 +205,9 @@ mod tests {
         });
     }
 
-    #[test]
-    fn test_remove_data() {
-        task::block_on(async {
+    #[async_test]
+    async fn test_remove_data() {
+        futures::executor::block_on(async {
             let tmp = tempfile::tempdir().unwrap();
             let dir = tmp.path().to_owned();
             let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
@@ -218,9 +222,9 @@ mod tests {
         });
     }
 
-    #[test]
-    fn test_clear() {
-        task::block_on(async {
+    #[async_test]
+    async fn test_clear() {
+        futures::executor::block_on(async {
             let tmp = tempfile::tempdir().unwrap();
             let dir = tmp.path().to_owned();
             let sri = crate::write(&dir, "key", b"my-data").await.unwrap();

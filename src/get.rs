@@ -3,10 +3,9 @@ use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context as TaskContext, Poll};
 
-use futures::prelude::*;
-
 use ssri::{Algorithm, Integrity};
 
+use crate::async_lib::AsyncRead;
 use crate::content::read;
 use crate::errors::{Error, Result};
 use crate::index::{self, Metadata};
@@ -24,11 +23,21 @@ pub struct Reader {
 }
 
 impl AsyncRead for Reader {
+    #[cfg(feature = "async-std")]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut TaskContext<'_>,
         buf: &mut [u8],
     ) -> Poll<std::io::Result<usize>> {
+        Pin::new(&mut self.reader).poll_read(cx, buf)
+    }
+
+    #[cfg(feature = "tokio")]
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut TaskContext<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> Poll<tokio::io::Result<()>> {
         Pin::new(&mut self.reader).poll_read(cx, buf)
     }
 }
@@ -457,11 +466,15 @@ pub fn exists_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use async_std::fs as afs;
-    use async_std::prelude::*;
+    use crate::async_lib::AsyncReadExt;
     use std::fs;
 
-    #[async_attributes::test]
+    #[cfg(feature = "async-std")]
+    use async_attributes::test as async_test;
+    #[cfg(feature = "tokio")]
+    use tokio::test as async_test;
+
+    #[async_test]
     async fn test_open() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
@@ -474,7 +487,7 @@ mod tests {
         assert_eq!(str, String::from("hello world"));
     }
 
-    #[async_attributes::test]
+    #[async_test]
     async fn test_open_hash() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
@@ -515,7 +528,7 @@ mod tests {
         assert_eq!(str, String::from("hello world"));
     }
 
-    #[async_attributes::test]
+    #[async_test]
     async fn test_read() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
@@ -525,7 +538,7 @@ mod tests {
         assert_eq!(data, b"hello world");
     }
 
-    #[async_attributes::test]
+    #[async_test]
     async fn test_read_hash() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
@@ -555,7 +568,7 @@ mod tests {
         assert_eq!(data, b"hello world");
     }
 
-    #[async_attributes::test]
+    #[async_test]
     async fn test_copy() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path();
@@ -563,11 +576,11 @@ mod tests {
         crate::write(&dir, "my-key", b"hello world").await.unwrap();
 
         crate::copy(&dir, "my-key", &dest).await.unwrap();
-        let data = afs::read(&dest).await.unwrap();
+        let data = crate::async_lib::read(&dest).await.unwrap();
         assert_eq!(data, b"hello world");
     }
 
-    #[async_attributes::test]
+    #[async_test]
     async fn test_copy_hash() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path();
@@ -575,7 +588,7 @@ mod tests {
         let sri = crate::write(&dir, "my-key", b"hello world").await.unwrap();
 
         crate::copy_hash(&dir, &sri, &dest).await.unwrap();
-        let data = afs::read(&dest).await.unwrap();
+        let data = crate::async_lib::read(&dest).await.unwrap();
         assert_eq!(data, b"hello world");
     }
 
