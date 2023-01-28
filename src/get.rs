@@ -69,6 +69,7 @@ impl Reader {
     pub fn check(self) -> Result<Algorithm> {
         self.reader.check()
     }
+
     /// Opens a new file handle into the cache, looking it up in the index using
     /// `key`.
     ///

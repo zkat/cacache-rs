@@ -121,7 +121,7 @@
 //!   Ok(())
 //! }
 //! ```
-#![warn(missing_docs, missing_doc_code_examples)]
+#![warn(missing_docs, rustdoc::missing_doc_code_examples)]
 
 #[cfg(not(any(feature = "async-std", feature = "tokio-runtime")))]
 compile_error!("Either feature \"async-std\" or \"tokio-runtime\" must be enabled for this crate.");
