@@ -30,14 +30,20 @@ tokio = { version = "1.12.0", features = [
     "fs",
     "io-util",
     "macros",
-    "rt",
-    "rt-multi-thread",
+    "rt"
 ], optional = true }
 tokio-stream = { version = "0.1.7", features = ["io-util"], optional = true }
 walkdir = "2.3.2"
 
 [dev-dependencies]
 criterion = "0.4.0"
+tokio = { version = "1.12.0", features = [
+    "fs",
+    "io-util",
+    "macros",
+    "rt",
+    "rt-multi-thread",
+]}
 
 [[bench]]
 name = "benchmarks"
