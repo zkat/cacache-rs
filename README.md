@@ -53,6 +53,7 @@ Minimum supported Rust version is `1.43.0`.
 - Pretty darn fast
 - Arbitrary metadata storage
 - Cross-platform: Windows and case-(in)sensitive filesystem support
+- [`miette`](https://crates.io/crates/miette) integration for detailed, helpful error reporting.
 - Punches nazis
 
 `async-std` is the default async runtime. To use `tokio` instead, turn off default features and enable the `tokio-runtime` feature, like this:
@@ -69,6 +70,11 @@ The cacache team enthusiastically welcomes contributions and project participati
 All participants and maintainers in this project are expected to follow [Code of Conduct](CODE_OF_CONDUCT.md), and just generally be excellent to each other.
 
 Happy hacking!
+
+## MSRV
+
+The Minimum Supported Rust Version for cacache is `1.67.0`. Any changes to the
+MSRV will be considered breaking changes.
 
 ## License
 

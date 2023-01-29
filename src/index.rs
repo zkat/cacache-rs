@@ -16,7 +16,7 @@ use ssri::Integrity;
 use walkdir::WalkDir;
 
 use crate::async_lib::{AsyncBufReadExt, AsyncWriteExt};
-use crate::errors::{Internal, InternalResult, Result};
+use crate::errors::{IoErrorExt, Result};
 use crate::put::WriteOpts;
 
 const INDEX_VERSION: &str = "5";
@@ -220,16 +220,32 @@ pub async fn delete_async(cache: &Path, key: &str) -> Result<()> {
 }
 
 pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Metadata>> {
-    WalkDir::new(cache.join(format!("index-v{INDEX_VERSION}")))
+    let cache_path = cache.join(format!("index-v{INDEX_VERSION}"));
+    let cloned = cache_path.clone();
+    WalkDir::new(&cache_path)
         .into_iter()
-        .map(|bucket| {
-            let bucket = bucket.to_internal()?;
+        .map(move |bucket| {
+            let bucket = bucket
+                .map_err(|e| match e.io_error() {
+                    Some(io_err) => std::io::Error::new(io_err.kind(), io_err.kind().to_string()),
+                    None => crate::errors::io_error("Unexpected error"),
+                })
+                .with_context(|| {
+                    format!(
+                        "Error while walking cache index directory at {}",
+                        cloned.display()
+                    )
+                })?;
 
             if bucket.file_type().is_dir() {
                 return Ok(Vec::new());
             }
 
-            Ok(bucket_entries(bucket.path())?
+            let owned_path = bucket.path().to_owned();
+            Ok(bucket_entries(bucket.path())
+                .with_context(|| {
+                    format!("Error getting bucket entries from {}", owned_path.display())
+                })?
                 .into_iter()
                 .collect::<HashSet<SerializableMetadata>>()
                 .into_iter()
@@ -282,7 +298,7 @@ fn now() -> u128 {
         .as_millis()
 }
 
-fn bucket_entries(bucket: &Path) -> InternalResult<Vec<SerializableMetadata>> {
+fn bucket_entries(bucket: &Path) -> std::io::Result<Vec<SerializableMetadata>> {
     use std::io::{BufRead, BufReader};
     fs::File::open(bucket)
         .map(|file| {
@@ -303,18 +319,18 @@ fn bucket_entries(bucket: &Path) -> InternalResult<Vec<SerializableMetadata>> {
             if err.kind() == ErrorKind::NotFound {
                 Ok(Vec::new())
             } else {
-                Err(err).to_internal()?
+                Err(err)?
             }
         })
 }
 
-async fn bucket_entries_async(bucket: &Path) -> InternalResult<Vec<SerializableMetadata>> {
+async fn bucket_entries_async(bucket: &Path) -> std::io::Result<Vec<SerializableMetadata>> {
     let file_result = crate::async_lib::File::open(bucket).await;
     let file = if let Err(err) = file_result {
         if err.kind() == ErrorKind::NotFound {
             return Ok(Vec::new());
         }
-        return Err(err).to_internal()?;
+        return Err(err)?;
     } else {
         file_result.unwrap()
     };
