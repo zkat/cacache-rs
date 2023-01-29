@@ -93,14 +93,14 @@ impl Reader {
         P: AsRef<Path>,
         K: AsRef<str>,
     {
-        if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
-            Reader::open_hash(cache, entry.integrity).await
-        } else {
-            return Err(Error::EntryNotFound(
-                cache.as_ref().to_path_buf(),
-                key.as_ref().into(),
-            ));
+        async fn inner(cache: &Path, key: &str) -> Result<Reader> {
+            if let Some(entry) = index::find_async(cache, key).await? {
+                Reader::open_hash(cache, entry.integrity).await
+            } else {
+                return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+            }
         }
+        inner(cache.as_ref(), key.as_ref()).await
     }
 
     /// Opens a new file handle into the cache, based on its integrity address.
@@ -150,14 +150,14 @@ where
     P: AsRef<Path>,
     K: AsRef<str>,
 {
-    if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
-        read_hash(cache, &entry.integrity).await
-    } else {
-        return Err(Error::EntryNotFound(
-            cache.as_ref().to_path_buf(),
-            key.as_ref().into(),
-        ));
+    async fn inner(cache: &Path, key: &str) -> Result<Vec<u8>> {
+        if let Some(entry) = index::find_async(cache, key).await? {
+            read_hash(cache, &entry.integrity).await
+        } else {
+            return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+        }
     }
+    inner(cache.as_ref(), key.as_ref()).await
 }
 
 /// Reads the entire contents of a cache file into a bytes vector, looking the
@@ -202,14 +202,14 @@ where
     K: AsRef<str>,
     Q: AsRef<Path>,
 {
-    if let Some(entry) = index::find_async(cache.as_ref(), key.as_ref()).await? {
-        copy_hash(cache, &entry.integrity, to).await
-    } else {
-        return Err(Error::EntryNotFound(
-            cache.as_ref().to_path_buf(),
-            key.as_ref().into(),
-        ));
+    async fn inner(cache: &Path, key: &str, to: &Path) -> Result<u64> {
+        if let Some(entry) = index::find_async(cache, key).await? {
+            copy_hash(cache, &entry.integrity, to).await
+        } else {
+            return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+        }
     }
+    inner(cache.as_ref(), key.as_ref(), to.as_ref()).await
 }
 
 /// Copies a cache data by hash to a specified location. Returns the number of
@@ -315,14 +315,14 @@ impl SyncReader {
         P: AsRef<Path>,
         K: AsRef<str>,
     {
-        if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
-            SyncReader::open_hash(cache, entry.integrity)
-        } else {
-            return Err(Error::EntryNotFound(
-                cache.as_ref().to_path_buf(),
-                key.as_ref().into(),
-            ));
+        fn inner(cache: &Path, key: &str) -> Result<SyncReader> {
+            if let Some(entry) = index::find(cache, key)? {
+                SyncReader::open_hash(cache, entry.integrity)
+            } else {
+                return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+            }
         }
+        inner(cache.as_ref(), key.as_ref())
     }
 
     /// Opens a new synchronous file handle into the cache, based on its integrity address.
@@ -368,14 +368,14 @@ where
     P: AsRef<Path>,
     K: AsRef<str>,
 {
-    if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
-        read_hash_sync(cache, &entry.integrity)
-    } else {
-        return Err(Error::EntryNotFound(
-            cache.as_ref().to_path_buf(),
-            key.as_ref().into(),
-        ));
+    fn inner(cache: &Path, key: &str) -> Result<Vec<u8>> {
+        if let Some(entry) = index::find(cache, key)? {
+            read_hash_sync(cache, &entry.integrity)
+        } else {
+            return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+        }
     }
+    inner(cache.as_ref(), key.as_ref())
 }
 
 /// Reads the entire contents of a cache file synchronously into a bytes
@@ -416,14 +416,14 @@ where
     K: AsRef<str>,
     Q: AsRef<Path>,
 {
-    if let Some(entry) = index::find(cache.as_ref(), key.as_ref())? {
-        copy_hash_sync(cache, &entry.integrity, to)
-    } else {
-        return Err(Error::EntryNotFound(
-            cache.as_ref().to_path_buf(),
-            key.as_ref().into(),
-        ));
+    fn inner(cache: &Path, key: &str, to: &Path) -> Result<u64> {
+        if let Some(entry) = index::find(cache, key)? {
+            copy_hash_sync(cache, &entry.integrity, to)
+        } else {
+            return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+        }
     }
+    inner(cache.as_ref(), key.as_ref(), to.as_ref())
 }
 
 /// Copies a cache entry by integrity address to a specified location. Returns

@@ -31,19 +31,21 @@ where
     D: AsRef<[u8]>,
     K: AsRef<str>,
 {
-    let mut writer = WriteOpts::new()
-        .algorithm(Algorithm::Sha256)
-        .size(data.as_ref().len())
-        .open(cache.as_ref(), key.as_ref())
-        .await?;
-    writer.write_all(data.as_ref()).await.with_context(|| {
-        format!(
-            "Failed to write to cache data for key {} for cache at {:?}",
-            key.as_ref(),
-            cache.as_ref()
-        )
-    })?;
-    writer.commit().await
+    async fn inner(cache: &Path, key: &str, data: &[u8]) -> Result<Integrity> {
+        let mut writer = WriteOpts::new()
+            .algorithm(Algorithm::Sha256)
+            .size(data.len())
+            .open(cache, key)
+            .await?;
+        writer.write_all(data).await.with_context(|| {
+            format!(
+                "Failed to write to cache data for key {} for cache at {:?}",
+                key, cache
+            )
+        })?;
+        writer.commit().await
+    }
+    inner(cache.as_ref(), key.as_ref(), data.as_ref()).await
 }
 
 /// Writes `data` to the `cache`, skipping associating an index key with it.
@@ -63,18 +65,19 @@ where
     P: AsRef<Path>,
     D: AsRef<[u8]>,
 {
-    let mut writer = WriteOpts::new()
-        .algorithm(Algorithm::Sha256)
-        .size(data.as_ref().len())
-        .open_hash(cache.as_ref())
-        .await?;
-    writer.write_all(data.as_ref()).await.with_context(|| {
-        format!(
-            "Failed to write to cache data for cache at {:?}",
-            cache.as_ref()
-        )
-    })?;
-    writer.commit().await
+    async fn inner(cache: &Path, data: &[u8]) -> Result<Integrity> {
+        let mut writer = WriteOpts::new()
+            .algorithm(Algorithm::Sha256)
+            .size(data.len())
+            .open_hash(cache)
+            .await?;
+        writer
+            .write_all(data)
+            .await
+            .with_context(|| format!("Failed to write to cache data for cache at {:?}", cache))?;
+        writer.commit().await
+    }
+    inner(cache.as_ref(), data.as_ref()).await
 }
 
 /// A reference to an open file writing to the cache.
@@ -137,10 +140,13 @@ impl Writer {
         P: AsRef<Path>,
         K: AsRef<str>,
     {
-        WriteOpts::new()
-            .algorithm(Algorithm::Sha256)
-            .open(cache.as_ref(), key.as_ref())
-            .await
+        async fn inner(cache: &Path, key: &str) -> Result<Writer> {
+            WriteOpts::new()
+                .algorithm(Algorithm::Sha256)
+                .open(cache, key)
+                .await
+        }
+        inner(cache.as_ref(), key.as_ref()).await
     }
 
     /// Closes the Writer handle and writes content and index entries. Also
@@ -187,16 +193,18 @@ where
     D: AsRef<[u8]>,
     K: AsRef<str>,
 {
-    let mut writer = SyncWriter::create(cache.as_ref(), key.as_ref())?;
-    writer.write_all(data.as_ref()).with_context(|| {
-        format!(
-            "Failed to write to cache data for key {} for cache at {:?}",
-            key.as_ref(),
-            cache.as_ref()
-        )
-    })?;
-    writer.written = data.as_ref().len();
-    writer.commit()
+    fn inner(cache: &Path, key: &str, data: &[u8]) -> Result<Integrity> {
+        let mut writer = SyncWriter::create(cache, key)?;
+        writer.write_all(data).with_context(|| {
+            format!(
+                "Failed to write to cache data for key {} for cache at {:?}",
+                key, cache
+            )
+        })?;
+        writer.written = data.as_ref().len();
+        writer.commit()
+    }
+    inner(cache.as_ref(), key.as_ref(), data.as_ref())
 }
 
 /// Writes `data` to the `cache` synchronously, skipping associating a key with it.
@@ -215,18 +223,18 @@ where
     P: AsRef<Path>,
     D: AsRef<[u8]>,
 {
-    let mut writer = WriteOpts::new()
-        .algorithm(Algorithm::Sha256)
-        .size(data.as_ref().len())
-        .open_hash_sync(cache.as_ref())?;
-    writer.write_all(data.as_ref()).with_context(|| {
-        format!(
-            "Failed to write to cache data for cache at {:?}",
-            cache.as_ref()
-        )
-    })?;
-    writer.written = data.as_ref().len();
-    writer.commit()
+    fn inner(cache: &Path, data: &[u8]) -> Result<Integrity> {
+        let mut writer = WriteOpts::new()
+            .algorithm(Algorithm::Sha256)
+            .size(data.len())
+            .open_hash_sync(cache)?;
+        writer
+            .write_all(data)
+            .with_context(|| format!("Failed to write to cache data for cache at {:?}", cache))?;
+        writer.written = data.len();
+        writer.commit()
+    }
+    inner(cache.as_ref(), data.as_ref())
 }
 
 /// Builder for options and flags for opening a new cache file to write data into.
@@ -251,18 +259,21 @@ impl WriteOpts {
         P: AsRef<Path>,
         K: AsRef<str>,
     {
-        Ok(Writer {
-            cache: cache.as_ref().to_path_buf(),
-            key: Some(String::from(key.as_ref())),
-            written: 0,
-            writer: write::AsyncWriter::new(
-                cache.as_ref(),
-                *self.algorithm.as_ref().unwrap_or(&Algorithm::Sha256),
-                None,
-            )
-            .await?,
-            opts: self,
-        })
+        async fn inner(me: WriteOpts, cache: &Path, key: &str) -> Result<Writer> {
+            Ok(Writer {
+                cache: cache.to_path_buf(),
+                key: Some(String::from(key)),
+                written: 0,
+                writer: write::AsyncWriter::new(
+                    cache.as_ref(),
+                    me.algorithm.unwrap_or(Algorithm::Sha256),
+                    None,
+                )
+                .await?,
+                opts: me,
+            })
+        }
+        inner(self, cache.as_ref(), key.as_ref()).await
     }
 
     /// Opens the file handle for writing, without a key returning an Writer instance.
@@ -270,18 +281,21 @@ impl WriteOpts {
     where
         P: AsRef<Path>,
     {
-        Ok(Writer {
-            cache: cache.as_ref().to_path_buf(),
-            key: None,
-            written: 0,
-            writer: write::AsyncWriter::new(
-                cache.as_ref(),
-                *self.algorithm.as_ref().unwrap_or(&Algorithm::Sha256),
-                self.size,
-            )
-            .await?,
-            opts: self,
-        })
+        async fn inner(me: WriteOpts, cache: &Path) -> Result<Writer> {
+            Ok(Writer {
+                cache: cache.to_path_buf(),
+                key: None,
+                written: 0,
+                writer: write::AsyncWriter::new(
+                    cache,
+                    me.algorithm.unwrap_or(Algorithm::Sha256),
+                    me.size,
+                )
+                .await?,
+                opts: me,
+            })
+        }
+        inner(self, cache.as_ref()).await
     }
 
     /// Opens the file handle for writing synchronously, returning a SyncWriter instance.
@@ -290,17 +304,20 @@ impl WriteOpts {
         P: AsRef<Path>,
         K: AsRef<str>,
     {
-        Ok(SyncWriter {
-            cache: cache.as_ref().to_path_buf(),
-            key: Some(String::from(key.as_ref())),
-            written: 0,
-            writer: write::Writer::new(
-                cache.as_ref(),
-                *self.algorithm.as_ref().unwrap_or(&Algorithm::Sha256),
-                self.size,
-            )?,
-            opts: self,
-        })
+        fn inner(me: WriteOpts, cache: &Path, key: &str) -> Result<SyncWriter> {
+            Ok(SyncWriter {
+                cache: cache.to_path_buf(),
+                key: Some(String::from(key)),
+                written: 0,
+                writer: write::Writer::new(
+                    cache.as_ref(),
+                    me.algorithm.unwrap_or(Algorithm::Sha256),
+                    me.size,
+                )?,
+                opts: me,
+            })
+        }
+        inner(self, cache.as_ref(), key.as_ref())
     }
 
     /// Opens the file handle for writing, without a key returning an SyncWriter instance.
@@ -308,17 +325,20 @@ impl WriteOpts {
     where
         P: AsRef<Path>,
     {
-        Ok(SyncWriter {
-            cache: cache.as_ref().to_path_buf(),
-            key: None,
-            written: 0,
-            writer: write::Writer::new(
-                cache.as_ref(),
-                *self.algorithm.as_ref().unwrap_or(&Algorithm::Sha256),
-                self.size,
-            )?,
-            opts: self,
-        })
+        fn inner(me: WriteOpts, cache: &Path) -> Result<SyncWriter> {
+            Ok(SyncWriter {
+                cache: cache.to_path_buf(),
+                key: None,
+                written: 0,
+                writer: write::Writer::new(
+                    cache,
+                    me.algorithm.unwrap_or(Algorithm::Sha256),
+                    me.size,
+                )?,
+                opts: me,
+            })
+        }
+        inner(self, cache.as_ref())
     }
 
     /// Configures the algorithm to write data under.
@@ -397,9 +417,12 @@ impl SyncWriter {
         P: AsRef<Path>,
         K: AsRef<str>,
     {
-        WriteOpts::new()
-            .algorithm(Algorithm::Sha256)
-            .open_sync(cache.as_ref(), key.as_ref())
+        fn inner(cache: &Path, key: &str) -> Result<SyncWriter> {
+            WriteOpts::new()
+                .algorithm(Algorithm::Sha256)
+                .open_sync(cache, key)
+        }
+        inner(cache.as_ref(), key.as_ref())
     }
 
     /// Closes the Writer handle and writes content and index entries. Also

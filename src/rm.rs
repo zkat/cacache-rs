@@ -90,12 +90,15 @@ pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()
 /// }
 /// ```
 pub async fn clear<P: AsRef<Path>>(cache: P) -> Result<()> {
-    for entry in (cache.as_ref().read_dir().to_internal()?).flatten() {
-        crate::async_lib::remove_dir_all(entry.path())
-            .await
-            .to_internal()?;
+    async fn inner(cache: &Path) -> Result<()> {
+        for entry in cache.read_dir().to_internal()?.flatten() {
+            crate::async_lib::remove_dir_all(entry.path())
+                .await
+                .to_internal()?;
+        }
+        Ok(())
     }
-    Ok(())
+    inner(cache.as_ref()).await
 }
 
 /// Removes an individual index entry synchronously. The associated content
@@ -174,10 +177,13 @@ pub fn remove_hash_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()>
 /// }
 /// ```
 pub fn clear_sync<P: AsRef<Path>>(cache: P) -> Result<()> {
-    for entry in (cache.as_ref().read_dir().to_internal()?).flatten() {
-        fs::remove_dir_all(entry.path()).to_internal()?;
+    fn inner(cache: &Path) -> Result<()> {
+        for entry in cache.read_dir().to_internal()?.flatten() {
+            fs::remove_dir_all(entry.path()).to_internal()?;
+        }
+        Ok(())
     }
-    Ok(())
+    inner(cache.as_ref())
 }
 
 #[cfg(test)]
