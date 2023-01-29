@@ -23,8 +23,8 @@ jobs:
       - name: docs
         run: cargo doc
 
-  build_and_test_async_std:
-    name: Build & Test (async-std)
+  build_and_test:
+    name: Build & Test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -40,31 +40,13 @@ jobs:
           toolchain: ${{ matrix.rust }}
           components: clippy
           override: true
-      - name: Check
-        run: cargo check
       - name: Clippy
         run: cargo clippy -- -D warnings
-      - name: Run tests
+      - name: Check (async-std)
+        run: cargo check
+      - name: Run tests (async-std)
         run: cargo test --verbose
-
-  build_and_test_tokio:
-    name: Build & Test (Tokio)
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        rust: [1.67.0, stable]
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-
-    steps:
-      - uses: actions/checkout@v1
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          components: clippy
-          override: true
-      - name: Check
+      - name: Check (Tokio)
         run: cargo check --no-default-features --features tokio-runtime
-      - name: Run unit tests
+      - name: Run unit tests (Tokio)
         run: cargo test --verbose --no-default-features --features tokio-runtime --lib
