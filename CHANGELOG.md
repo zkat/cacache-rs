@@ -1,13 +1,41 @@
 # `cacache` Release Changelog
 
+<a name="11.0.0"></a>
+## 11.0.0 (2023-01-29)
+
+This release includes a number of nice improvements to error reporting,
+integrating [`miette`](https://crates.io/crates/miette) to provide more
+helpful, contextual error messages, as well as adding
+[`tokio`](https://crates.io/crates/tokio) as an optional runtime, instead of
+`async-std`.
+
+It also includes a number of bug fixes and performance improvements.
+
+Note that this release also bumps the MSRV to 1.67.0, which will hopefully
+stay there for a while. Apologies if you're still on an earlier version of
+`rustc`: the ecosystem moved forward and ultimately, we needed to move with
+it.
+
+### Bug Fixes
+
+* **write:** set tmpfile length in async writer (#35) ([6d84ff0a](https://github.com/zkat/cacache-rs/commit/6d84ff0aed53aea727b32f6b3d16ee0d045aa0e4))
+    * **BREAKING CHANGE**: This commit also bumps the MSRV for cacache to 1.66.1.
+* **deps:** only include rt-multi-threaded for tokio when running tests ([526386ad](https://github.com/zkat/cacache-rs/commit/526386ada8a6b3ebee3222edb93ef401959e7f6e))
+* **msrv:** be less aggressive about MSRV bump ([dca57e11](https://github.com/zkat/cacache-rs/commit/dca57e11001f8ee06077af77dfffe3bc9df5af2a))
+* **perf:** do the inner fn trick to reduce generic compilation load ([da259ae4](https://github.com/zkat/cacache-rs/commit/da259ae43233e0b0cb23a2195700d3bca2942340))
+
+### Features
+
+* **async:** Add tokio as an executor option (#36) ([e34dcfdc](https://github.com/zkat/cacache-rs/commit/e34dcfdc250c87010afa07279dc7d6aefce9866b))
+* **errors:** integrate miette and generally improve error reporting (#38) ([c2d5390a](https://github.com/zkat/cacache-rs/commit/c2d5390a84639ddc62b0581c76dd986442cfca7d))
+    * **BREAKING CHANGE**: This bumps the MSRV to 1.67.0 and documents it in the README.
+
 <a name="10.0.1"></a>
 ## 10.0.1 (2022-02-25)
 
 ### Bug Fixes
 
 * **mmap:** mmap needs equal buffer lengths (#33) ([684a3e8a](https://github.com/zkat/cacache-rs/commit/684a3e8a682d7ddc60a18671bc182373f2bc6c28))
-
-# `cacache` Release Changelog
 
 <a name="10.0.0"></a>
 ## 10.0.0 (2022-01-23)
