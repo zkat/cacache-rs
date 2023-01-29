@@ -12,7 +12,7 @@ use tempfile::NamedTempFile;
 
 use crate::async_lib::{AsyncWrite, JoinHandle};
 use crate::content::path;
-use crate::errors::{Internal, Result};
+use crate::errors::{IoErrorExt, Result};
 
 pub const MAX_MMAP_SIZE: usize = 1024 * 1024;
 
@@ -31,11 +31,30 @@ impl Writer {
         DirBuilder::new()
             .recursive(true)
             .create(&tmp_path)
-            .to_internal()?;
-        let mut tmpfile = NamedTempFile::new_in(tmp_path).to_internal()?;
+            .with_context(|| {
+                format!(
+                    "Failed to create cache directory for temporary files, at {}",
+                    tmp_path.display()
+                )
+            })?;
+        let tmp_path_clone = tmp_path.clone();
+        let mut tmpfile = NamedTempFile::new_in(tmp_path).with_context(|| {
+            format!(
+                "Failed to create temp file while initializing a writer, inside {}",
+                tmp_path_clone.display()
+            )
+        })?;
         let mmap = if let Some(size) = size {
             if size <= MAX_MMAP_SIZE {
-                tmpfile.as_file_mut().set_len(size as u64).to_internal()?;
+                tmpfile
+                    .as_file_mut()
+                    .set_len(size as u64)
+                    .with_context(|| {
+                        format!(
+                            "Failed to configure file length for temp file at {}",
+                            tmpfile.path().display()
+                        )
+                    })?;
                 unsafe { MmapMut::map_mut(tmpfile.as_file()).ok() }
             } else {
                 None
@@ -58,13 +77,31 @@ impl Writer {
             .recursive(true)
             // Safe unwrap. cpath always has multiple segments
             .create(cpath.parent().unwrap())
-            .to_internal()?;
-        let res = self.tmpfile.persist(&cpath).to_internal();
-        if res.is_err() {
-            // We might run into conflicts sometimes when persisting files.
-            // This is ok. We can deal. Let's just make sure the destination
-            // file actually exists, and we can move on.
-            std::fs::metadata(cpath).to_internal()?;
+            .with_context(|| {
+                format!(
+                    "Failed to create destination directory for cache contents, at {}",
+                    path::content_path(&self.cache, &sri)
+                        .parent()
+                        .unwrap()
+                        .display()
+                )
+            })?;
+        let res = self.tmpfile.persist(&cpath);
+        match res {
+            Ok(_) => {}
+            Err(e) => {
+                // We might run into conflicts sometimes when persisting files.
+                // This is ok. We can deal. Let's just make sure the destination
+                // file actually exists, and we can move on.
+                if !cpath.exists() {
+                    return Err(e.error).with_context(|| {
+                        format!(
+                            "Failed to persist cache contents while closing writer, at {}",
+                            path::content_path(&self.cache, &sri).display()
+                        )
+                    })?;
+                }
+            }
         }
         Ok(sri)
     }
@@ -118,11 +155,24 @@ impl AsyncWriter {
             .recursive(true)
             .create(&tmp_path)
             .await
-            .to_internal()?;
+            .with_context(|| {
+                format!(
+                    "Failed to create cache directory for temporary files, at {}",
+                    tmp_path.display()
+                )
+            })?;
         let mut tmpfile = crate::async_lib::create_named_tempfile(tmp_path).await?;
         let mmap = if let Some(size) = size {
             if size <= MAX_MMAP_SIZE {
-                tmpfile.as_file_mut().set_len(size as u64).to_internal()?;
+                tmpfile
+                    .as_file_mut()
+                    .set_len(size as u64)
+                    .with_context(|| {
+                        format!(
+                            "Failed to configure file length for temp file at {}",
+                            tmpfile.path().display()
+                        )
+                    })?;
                 unsafe { MmapMut::map_mut(tmpfile.as_file()).ok() }
             } else {
                 None
@@ -144,7 +194,7 @@ impl AsyncWriter {
         // NOTE: How do I even get access to `inner` safely???
         // let inner = ???;
         // Blocking, but should be a very fast op.
-        Ok(futures::future::poll_fn(|cx| {
+        futures::future::poll_fn(|cx| {
             let state = &mut *self.0.lock().unwrap();
 
             loop {
@@ -172,9 +222,12 @@ impl AsyncWriter {
                                 if res.is_err() {
                                     let _ = s.send(res.map(|_| sri));
                                 } else {
-                                    let res = tmpfile.persist(&cpath).with_context(|| {
-                                        String::from("persisting tempfile failed")
-                                    });
+                                    let res = tmpfile
+                                        .persist(&cpath)
+                                        .map_err(|e| e.error)
+                                        .with_context(|| {
+                                            format!("persisting file {} failed", cpath.display())
+                                        });
                                     if res.is_err() {
                                         // We might run into conflicts
                                         // sometimes when persisting files.
@@ -208,11 +261,12 @@ impl AsyncWriter {
                 }
             }
         })
-        .map(|opt| opt.ok_or_else(|| io_error("file closed")))
+        .map(|opt| opt.ok_or_else(|| crate::errors::io_error("file closed")))
         .await
-        .to_internal()?
+        .with_context(|| "Error while closing cache contents".to_string())?
         .await
-        .to_internal()??)
+        .map_err(|_| crate::errors::io_error("Operation cancelled"))
+        .with_context(|| "Error while closing cache contents".to_string())?
     }
 }
 
@@ -229,7 +283,9 @@ impl AsyncWrite for AsyncWriter {
                 State::Idle(opt) => {
                     // Grab a reference to the inner representation of the file or return an error
                     // if the file is closed.
-                    let inner = opt.as_mut().ok_or_else(|| io_error("file closed"))?;
+                    let inner = opt
+                        .as_mut()
+                        .ok_or_else(|| crate::errors::io_error("file closed"))?;
 
                     // Check if the operation has completed.
                     if let Some(Operation::Write(res)) = inner.last_op.take() {
@@ -370,10 +426,6 @@ impl AsyncWriter {
             }
         }
     }
-}
-
-fn io_error(err: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::Other, err)
 }
 
 #[cfg(test)]

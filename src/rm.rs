@@ -5,7 +5,7 @@ use std::path::Path;
 use ssri::Integrity;
 
 use crate::content::rm;
-use crate::errors::{Internal, Result};
+use crate::errors::{IoErrorExt, Result};
 use crate::index;
 
 /// Removes an individual index metadata entry. The associated content will be
@@ -91,10 +91,19 @@ pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()
 /// ```
 pub async fn clear<P: AsRef<Path>>(cache: P) -> Result<()> {
     async fn inner(cache: &Path) -> Result<()> {
-        for entry in cache.read_dir().to_internal()?.flatten() {
+        for entry in cache
+            .read_dir()
+            .with_context(|| {
+                format!(
+                    "Failed to read directory contents while clearing cache, at {}",
+                    cache.display()
+                )
+            })?
+            .flatten()
+        {
             crate::async_lib::remove_dir_all(entry.path())
                 .await
-                .to_internal()?;
+                .with_context(|| format!("Failed to clear cache at {}", cache.display()))?;
         }
         Ok(())
     }
@@ -178,8 +187,18 @@ pub fn remove_hash_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()>
 /// ```
 pub fn clear_sync<P: AsRef<Path>>(cache: P) -> Result<()> {
     fn inner(cache: &Path) -> Result<()> {
-        for entry in cache.read_dir().to_internal()?.flatten() {
-            fs::remove_dir_all(entry.path()).to_internal()?;
+        for entry in cache
+            .read_dir()
+            .with_context(|| {
+                format!(
+                    "Failed to read directory contents while clearing cache, at {}",
+                    cache.display()
+                )
+            })?
+            .flatten()
+        {
+            fs::remove_dir_all(entry.path())
+                .with_context(|| format!("Failed to clear cache at {}", cache.display()))?;
         }
         Ok(())
     }

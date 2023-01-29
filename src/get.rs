@@ -97,7 +97,7 @@ impl Reader {
             if let Some(entry) = index::find_async(cache, key).await? {
                 Reader::open_hash(cache, entry.integrity).await
             } else {
-                return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+                Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
             }
         }
         inner(cache.as_ref(), key.as_ref()).await
@@ -154,7 +154,7 @@ where
         if let Some(entry) = index::find_async(cache, key).await? {
             read_hash(cache, &entry.integrity).await
         } else {
-            return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
         }
     }
     inner(cache.as_ref(), key.as_ref()).await
@@ -206,7 +206,7 @@ where
         if let Some(entry) = index::find_async(cache, key).await? {
             copy_hash(cache, &entry.integrity, to).await
         } else {
-            return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
         }
     }
     inner(cache.as_ref(), key.as_ref(), to.as_ref()).await
@@ -319,7 +319,7 @@ impl SyncReader {
             if let Some(entry) = index::find(cache, key)? {
                 SyncReader::open_hash(cache, entry.integrity)
             } else {
-                return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+                Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
             }
         }
         inner(cache.as_ref(), key.as_ref())
@@ -372,7 +372,7 @@ where
         if let Some(entry) = index::find(cache, key)? {
             read_hash_sync(cache, &entry.integrity)
         } else {
-            return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
         }
     }
     inner(cache.as_ref(), key.as_ref())
@@ -420,7 +420,7 @@ where
         if let Some(entry) = index::find(cache, key)? {
             copy_hash_sync(cache, &entry.integrity, to)
         } else {
-            return Err(Error::EntryNotFound(cache.to_path_buf(), key.into()));
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
         }
     }
     inner(cache.as_ref(), key.as_ref(), to.as_ref())

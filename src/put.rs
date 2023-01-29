@@ -8,7 +8,7 @@ use ssri::{Algorithm, Integrity};
 
 use crate::async_lib::{AsyncWrite, AsyncWriteExt};
 use crate::content::write;
-use crate::errors::{Error, Internal, Result};
+use crate::errors::{Error, IoErrorExt, Result};
 use crate::index;
 
 use std::task::{Context as TaskContext, Poll};
@@ -38,10 +38,7 @@ where
             .open(cache, key)
             .await?;
         writer.write_all(data).await.with_context(|| {
-            format!(
-                "Failed to write to cache data for key {} for cache at {:?}",
-                key, cache
-            )
+            format!("Failed to write to cache data for key {key} for cache at {cache:?}")
         })?;
         writer.commit().await
     }
@@ -74,7 +71,7 @@ where
         writer
             .write_all(data)
             .await
-            .with_context(|| format!("Failed to write to cache data for cache at {:?}", cache))?;
+            .with_context(|| format!("Failed to write to cache data for cache at {cache:?}"))?;
         writer.commit().await
     }
     inner(cache.as_ref(), data.as_ref()).await
@@ -165,7 +162,7 @@ impl Writer {
         }
         if let Some(size) = self.opts.size {
             if size != self.written {
-                return Err(Error::SizeError(size, self.written));
+                return Err(Error::SizeMismatch(size, self.written));
             }
         }
         if let Some(key) = self.key {
@@ -196,10 +193,7 @@ where
     fn inner(cache: &Path, key: &str, data: &[u8]) -> Result<Integrity> {
         let mut writer = SyncWriter::create(cache, key)?;
         writer.write_all(data).with_context(|| {
-            format!(
-                "Failed to write to cache data for key {} for cache at {:?}",
-                key, cache
-            )
+            format!("Failed to write to cache data for key {key} for cache at {cache:?}")
         })?;
         writer.written = data.as_ref().len();
         writer.commit()
@@ -230,7 +224,7 @@ where
             .open_hash_sync(cache)?;
         writer
             .write_all(data)
-            .with_context(|| format!("Failed to write to cache data for cache at {:?}", cache))?;
+            .with_context(|| format!("Failed to write to cache data for cache at {cache:?}"))?;
         writer.written = data.len();
         writer.commit()
     }
@@ -265,7 +259,7 @@ impl WriteOpts {
                 key: Some(String::from(key)),
                 written: 0,
                 writer: write::AsyncWriter::new(
-                    cache.as_ref(),
+                    cache,
                     me.algorithm.unwrap_or(Algorithm::Sha256),
                     None,
                 )
@@ -310,7 +304,7 @@ impl WriteOpts {
                 key: Some(String::from(key)),
                 written: 0,
                 writer: write::Writer::new(
-                    cache.as_ref(),
+                    cache,
                     me.algorithm.unwrap_or(Algorithm::Sha256),
                     me.size,
                 )?,
@@ -441,7 +435,7 @@ impl SyncWriter {
         }
         if let Some(size) = self.opts.size {
             if size != self.written {
-                return Err(Error::SizeError(size, self.written));
+                return Err(Error::SizeMismatch(size, self.written));
             }
         }
         if let Some(key) = self.key {
