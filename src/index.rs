@@ -247,6 +247,7 @@ pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Metadata>> {
                     format!("Error getting bucket entries from {}", owned_path.display())
                 })?
                 .into_iter()
+                .rev()
                 .collect::<HashSet<SerializableMetadata>>()
                 .into_iter()
                 .filter_map(|se| {
@@ -363,6 +364,15 @@ mod tests {
     use tokio::test as async_test;
 
     const MOCK_ENTRY: &str = "\n251d18a2b33264ea8655695fd23c88bd874cdea2c3dc9d8f9b7596717ad30fec\t{\"key\":\"hello\",\"integrity\":\"sha1-deadbeef\",\"time\":1234567,\"size\":0,\"metadata\":null}";
+
+    fn ls_entries(dir: &Path) -> Vec<String> {
+        let mut entries = ls(dir)
+            .map(|x| Ok(x?.key))
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
+        entries.sort();
+        entries
+    }
 
     #[test]
     fn insert_basic() {
@@ -502,11 +512,26 @@ mod tests {
         let opts = WriteOpts::new().integrity(sri).time(time);
         insert(&dir, "world", opts).unwrap();
 
-        let mut entries = ls(&dir)
-            .map(|x| Ok(x?.key))
-            .collect::<Result<Vec<_>>>()
-            .unwrap();
-        entries.sort();
+        let entries = ls_entries(&dir);
         assert_eq!(entries, vec![String::from("hello"), String::from("world")])
+    }
+
+    #[test]
+    fn ls_basic_with_delete() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri: Integrity = "sha1-deadbeef".parse().unwrap();
+        let time = 1_234_567;
+        let opts = WriteOpts::new().integrity(sri.clone()).time(time);
+        insert(&dir, "hello", opts).unwrap();
+        let opts = WriteOpts::new().integrity(sri).time(time);
+        insert(&dir, "world", opts).unwrap();
+
+        let entries = ls_entries(&dir);
+        assert_eq!(entries, vec![String::from("hello"), String::from("world")]);
+
+        delete(&dir, "hello").unwrap();
+        let entries = ls_entries(&dir);
+        assert_eq!(entries, vec![String::from("world")])
     }
 }
