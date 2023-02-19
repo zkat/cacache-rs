@@ -1,5 +1,12 @@
 # `cacache` Release Changelog
 
+<a name="11.0.1"></a>
+## 11.0.1 (2023-02-19)
+
+### Features
+
+* **deps:** bump ssri to 8.0.0 ([f8cbfefc](https://github.com/zkat/cacache-rs/commit/f8cbfefc129861cece61a80dda3e5a4d9d6de053))
+
 <a name="11.0.0"></a>
 ## 11.0.0 (2023-01-29)
 
