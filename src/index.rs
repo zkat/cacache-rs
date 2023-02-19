@@ -1,3 +1,5 @@
+//! Raw access to the cache index. Use with caution!
+
 use std::collections::HashSet;
 use std::fs::{self, OpenOptions};
 use std::hash::{Hash, Hasher};
@@ -34,6 +36,8 @@ pub struct Metadata {
     pub size: usize,
     /// Arbitrary JSON  associated with this entry.
     pub metadata: Value,
+    /// Raw metadata in binary form. Can be different from JSON metadata.
+    pub raw_metadata: Option<Vec<u8>>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -43,6 +47,7 @@ struct SerializableMetadata {
     time: u128,
     size: usize,
     metadata: Value,
+    raw_metadata: Option<Vec<u8>>,
 }
 
 impl PartialEq for SerializableMetadata {
@@ -59,6 +64,7 @@ impl Hash for SerializableMetadata {
     }
 }
 
+/// Raw insertion into the cache index.
 pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
     let bucket = bucket_path(cache, key);
     fs::create_dir_all(bucket.parent().unwrap()).with_context(|| {
@@ -73,6 +79,7 @@ pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
         time: opts.time.unwrap_or_else(now),
         size: opts.size.unwrap_or(0),
         metadata: opts.metadata.unwrap_or(serde_json::Value::Null),
+        raw_metadata: opts.raw_metadata,
     })
     .with_context(|| format!("Failed to serialize entry with key `{key}`"))?;
 
@@ -93,6 +100,7 @@ pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
         .unwrap())
 }
 
+/// Asynchronous raw insertion into the cache index.
 pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) -> Result<Integrity> {
     let bucket = bucket_path(cache, key);
     crate::async_lib::create_dir_all(bucket.parent().unwrap())
@@ -109,6 +117,7 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) ->
         time: opts.time.unwrap_or_else(now),
         size: opts.size.unwrap_or(0),
         metadata: opts.metadata.unwrap_or(serde_json::Value::Null),
+        raw_metadata: opts.raw_metadata,
     })
     .with_context(|| format!("Failed to serialize entry with key `{key}`"))?;
 
@@ -132,6 +141,7 @@ pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) ->
         .unwrap())
 }
 
+/// Raw index Metadata access.
 pub fn find(cache: &Path, key: &str) -> Result<Option<Metadata>> {
     let bucket = bucket_path(cache, key);
     Ok(bucket_entries(&bucket)
@@ -150,6 +160,7 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Metadata>> {
                         size: entry.size,
                         time: entry.time,
                         metadata: entry.metadata,
+                        raw_metadata: entry.raw_metadata,
                     })
                 } else {
                     None
@@ -160,6 +171,7 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Metadata>> {
         }))
 }
 
+/// Asynchronous raw index Metadata access.
 pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Metadata>> {
     let bucket = bucket_path(cache, key);
     Ok(bucket_entries_async(&bucket)
@@ -179,6 +191,7 @@ pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Metadata>> {
                         size: entry.size,
                         time: entry.time,
                         metadata: entry.metadata,
+                        raw_metadata: entry.raw_metadata,
                     })
                 } else {
                     None
@@ -189,6 +202,7 @@ pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Metadata>> {
         }))
 }
 
+/// Deletes an index entry, without deleting the actual cache data entry.
 pub fn delete(cache: &Path, key: &str) -> Result<()> {
     insert(
         cache,
@@ -199,11 +213,14 @@ pub fn delete(cache: &Path, key: &str) -> Result<()> {
             sri: None,
             time: None,
             metadata: None,
+            raw_metadata: None,
         },
     )
     .map(|_| ())
 }
 
+/// Asynchronously deletes an index entry, without deleting the actual cache
+/// data entry.
 pub async fn delete_async(cache: &Path, key: &str) -> Result<()> {
     insert(
         cache,
@@ -214,11 +231,13 @@ pub async fn delete_async(cache: &Path, key: &str) -> Result<()> {
             sri: None,
             time: None,
             metadata: None,
+            raw_metadata: None,
         },
     )
     .map(|_| ())
 }
 
+/// Lists raw index Metadata entries.
 pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Metadata>> {
     let cache_path = cache.join(format!("index-v{INDEX_VERSION}"));
     let cloned = cache_path.clone();
@@ -258,6 +277,7 @@ pub fn ls(cache: &Path) -> impl Iterator<Item = Result<Metadata>> {
                             time: se.time,
                             size: se.size,
                             metadata: se.metadata,
+                            raw_metadata: se.raw_metadata,
                         })
                     } else {
                         None
@@ -363,7 +383,7 @@ mod tests {
     #[cfg(feature = "tokio")]
     use tokio::test as async_test;
 
-    const MOCK_ENTRY: &str = "\n251d18a2b33264ea8655695fd23c88bd874cdea2c3dc9d8f9b7596717ad30fec\t{\"key\":\"hello\",\"integrity\":\"sha1-deadbeef\",\"time\":1234567,\"size\":0,\"metadata\":null}";
+    const MOCK_ENTRY: &str = "\n9cbbfe2553e7c7e1773f53f0f643fdd72008faa38da53ebcb055e5e20321ae47\t{\"key\":\"hello\",\"integrity\":\"sha1-deadbeef\",\"time\":1234567,\"size\":0,\"metadata\":null,\"raw_metadata\":null}";
 
     fn ls_entries(dir: &Path) -> Vec<String> {
         let mut entries = ls(dir)
@@ -417,7 +437,8 @@ mod tests {
                 integrity: sri,
                 time,
                 size: 0,
-                metadata: json!(null)
+                metadata: json!(null),
+                raw_metadata: None,
             }
         );
     }
@@ -471,7 +492,8 @@ mod tests {
                 integrity: sri,
                 time,
                 size: 0,
-                metadata: json!(null)
+                metadata: json!(null),
+                raw_metadata: None,
             }
         );
     }
@@ -496,7 +518,8 @@ mod tests {
                 integrity: sri,
                 time,
                 size: 0,
-                metadata: json!(null)
+                metadata: json!(null),
+                raw_metadata: None,
             }
         );
     }

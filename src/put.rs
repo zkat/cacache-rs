@@ -239,6 +239,7 @@ pub struct WriteOpts {
     pub(crate) size: Option<usize>,
     pub(crate) time: Option<u128>,
     pub(crate) metadata: Option<Value>,
+    pub(crate) raw_metadata: Option<Vec<u8>>,
 }
 
 impl WriteOpts {
@@ -351,6 +352,12 @@ impl WriteOpts {
     /// Sets arbitrary additional metadata to associate with the index entry.
     pub fn metadata(mut self, metadata: Value) -> Self {
         self.metadata = Some(metadata);
+        self
+    }
+
+    /// Sets arbitrary additional binary metadata to associate with the index entry.
+    pub fn raw_metadata(mut self, metadata: Vec<u8>) -> Self {
+        self.raw_metadata = Some(metadata);
         self
     }
 
