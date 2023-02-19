@@ -1,5 +1,12 @@
 # `cacache` Release Changelog
 
+<a name="11.0.2"></a>
+## 11.0.2 (2023-02-19)
+
+### Bug Fixes
+
+* **ls:** make sure `ls` sees entry deletions (#40) ([53c28952](https://github.com/zkat/cacache-rs/commit/53c289523fc0d1bc9708e3e252f84b532e405329))
+
 <a name="11.0.1"></a>
 ## 11.0.1 (2023-02-19)
 
