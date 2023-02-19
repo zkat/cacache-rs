@@ -1,5 +1,12 @@
 # `cacache` Release Changelog
 
+<a name="11.1.0"></a>
+## 11.1.0 (2023-02-19)
+
+### Features
+
+* **index:** Add support for raw index metadata and expose index functions ([9991f56b](https://github.com/zkat/cacache-rs/commit/9991f56b4c689149257dbe86357cbcab8fa228e9))
+
 <a name="11.0.2"></a>
 ## 11.0.2 (2023-02-19)
 
