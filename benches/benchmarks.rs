@@ -226,7 +226,7 @@ fn link_to_async(c: &mut Criterion) {
 
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
-    c.bench_function("link::file", move |b| {
+    c.bench_function("link_to::file", move |b| {
         b.iter_custom(|iters| {
             let start = std::time::Instant::now();
             for i in 0..iters {
@@ -249,7 +249,7 @@ fn link_to_hash_async(c: &mut Criterion) {
 
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
-    c.bench_function("link::file_hash", move |b| {
+    c.bench_function("link_to::file_hash", move |b| {
         b.iter(|| block_on(cacache::link_to_hash(&cache, target.clone())).unwrap())
     });
 }
@@ -261,7 +261,7 @@ fn link_to_sync(c: &mut Criterion) {
 
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
-    c.bench_function("link::file_sync", move |b| {
+    c.bench_function("link_to::file_sync", move |b| {
         b.iter_custom(|iters| {
             let start = std::time::Instant::now();
             for i in 0..iters {
@@ -279,7 +279,7 @@ fn link_to_hash_sync(c: &mut Criterion) {
 
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
-    c.bench_function("link::file_hash_sync", move |b| {
+    c.bench_function("link_to::file_hash_sync", move |b| {
         b.iter(|| cacache::link_to_hash_sync(&cache, target.clone()).unwrap())
     });
 }
