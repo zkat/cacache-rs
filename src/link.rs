@@ -241,6 +241,13 @@ impl AsyncRead for Linker {
     }
 }
 
+fn filesize(target: &Path) -> Result<usize> {
+    Ok(target
+        .metadata()
+        .with_context(|| format!("Failed to get metadata of {}", target.display()))?
+        .len() as usize)
+}
+
 impl Linker {
     /// Creates a new asynchronous readable file handle into the cache.
     pub async fn open<P, K, T>(cache: P, key: K, target: T) -> Result<Self>
@@ -250,10 +257,7 @@ impl Linker {
         T: AsRef<Path>,
     {
         async fn inner(cache: &Path, key: &str, target: &Path) -> Result<Linker> {
-            let size = target
-                .metadata()
-                .with_context(|| format!("Failed to get metadata of {}", target.display()))?
-                .len() as usize;
+            let size = filesize(&target)?;
             WriteOpts::new()
                 .algorithm(Algorithm::Sha256)
                 .size(size)
@@ -270,10 +274,7 @@ impl Linker {
         T: AsRef<Path>,
     {
         async fn inner(cache: &Path, target: &Path) -> Result<Linker> {
-            let size = target
-                .metadata()
-                .with_context(|| format!("Failed to get metadata of {}", target.display()))?
-                .len() as usize;
+            let size = filesize(&target)?;
             WriteOpts::new()
                 .algorithm(Algorithm::Sha256)
                 .size(size)
@@ -380,10 +381,7 @@ impl SyncLinker {
         T: AsRef<Path>,
     {
         fn inner(cache: &Path, key: &str, target: &Path) -> Result<SyncLinker> {
-            let size = target
-                .metadata()
-                .with_context(|| format!("Failed to get metadata of {}", target.display()))?
-                .len() as usize;
+            let size = filesize(&target)?;
             WriteOpts::new()
                 .algorithm(Algorithm::Sha256)
                 .size(size)
@@ -417,10 +415,7 @@ impl SyncLinker {
         T: AsRef<Path>,
     {
         fn inner(cache: &Path, target: &Path) -> Result<SyncLinker> {
-            let size = target
-                .metadata()
-                .with_context(|| format!("Failed to get metadata of {}", target.display()))?
-                .len() as usize;
+            let size = filesize(&target)?;
             WriteOpts::new()
                 .algorithm(Algorithm::Sha256)
                 .size(size)
