@@ -9,6 +9,9 @@ use crate::async_lib::AsyncRead;
 use crate::content::path;
 use crate::errors::{IoErrorExt, Result};
 
+#[cfg(not(any(unix, windows)))]
+compile_error!("Symlinking is not supported on this platform.");
+
 fn symlink_file<P, Q>(src: P, dst: Q) -> std::io::Result<()>
 where
     P: AsRef<Path>,
@@ -23,13 +26,6 @@ where
     {
         use std::os::windows::fs::symlink_file;
         symlink_file(src, dst)
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "symlinking is not supported on this platform",
-        ))
     }
 }
 
