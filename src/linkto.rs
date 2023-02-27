@@ -1,5 +1,5 @@
 use crate::async_lib::AsyncRead;
-use crate::content::symlink;
+use crate::content::linkto;
 use crate::errors::{Error, IoErrorExt, Result};
 use crate::{index, WriteOpts};
 use ssri::{Algorithm, Integrity};
@@ -26,17 +26,17 @@ const PROBE_SIZE: usize = 8;
 ///
 /// #[async_attributes::main]
 /// async fn main() -> cacache::Result<()> {
-///     cacache::link("./my-cache", "my-key", "../my-other-files/my-file.tgz").await?;
+///     cacache::link_to("./my-cache", "my-key", "../my-other-files/my-file.tgz").await?;
 ///     Ok(())
 /// }
 /// ```
-pub async fn link<P, K, T>(cache: P, key: K, target: T) -> Result<Integrity>
+pub async fn link_to<P, K, T>(cache: P, key: K, target: T) -> Result<Integrity>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
     T: AsRef<Path>,
 {
-    Linker::open(cache, key, target).await?.commit().await
+    ToLinker::open(cache, key, target).await?.commit().await
 }
 
 /// Asynchrounously adds `target` to the `cache` with a symlink, skipping
@@ -49,20 +49,20 @@ where
 ///
 /// #[async_attributes::main]
 /// async fn main() -> cacache::Result<()> {
-///     cacache::link_hash("./my-cache", "../my-other-files/my-file.tgz").await?;
+///     cacache::link_to_hash("./my-cache", "../my-other-files/my-file.tgz").await?;
 ///     Ok(())
 /// }
 /// ```
-pub async fn link_hash<P, T>(cache: P, target: T) -> Result<Integrity>
+pub async fn link_to_hash<P, T>(cache: P, target: T) -> Result<Integrity>
 where
     P: AsRef<Path>,
     T: AsRef<Path>,
 {
-    Linker::open_hash(cache, target).await?.commit().await
+    ToLinker::open_hash(cache, target).await?.commit().await
 }
 
-/// Synchronously adds `target` to the `cache` with a symlink, indexing it under
-/// `key`.
+/// Synchronously creates a symlink in the `cache` to the `target`, indexing it
+/// under `key`.
 ///
 /// ## Example
 /// ```no_run
@@ -70,20 +70,20 @@ where
 /// use std::path::Path;
 ///
 /// fn main() -> cacache::Result<()> {
-///     cacache::link_sync("./my-cache", "my-key", "../my-other-files/my-file.tgz")?;
+///     cacache::link_to_sync("./my-cache", "my-key", "../my-other-files/my-file.tgz")?;
 ///     Ok(())
 /// }
 /// ```
-pub fn link_sync<P, K, T>(cache: P, key: K, target: T) -> Result<Integrity>
+pub fn link_to_sync<P, K, T>(cache: P, key: K, target: T) -> Result<Integrity>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
     T: AsRef<Path>,
 {
-    SyncLinker::open(cache, key, target)?.commit()
+    SyncToLinker::open(cache, key, target)?.commit()
 }
 
-/// Synchronously adds `target` to the `cache` with a symlink, skipping
+/// Synchronously creates a symlink in the `cache` to the `target`, skipping
 /// associating an index key with it.
 ///
 /// ## Example
@@ -92,34 +92,39 @@ where
 /// use std::path::Path;
 ///
 /// fn main() -> cacache::Result<()> {
-///     cacache::link_hash_sync("./my-cache", "../foo/bar.tgz")?;
+///     cacache::link_to_hash_sync("./my-cache", "../foo/bar.tgz")?;
 ///     Ok(())
 /// }
 /// ```
-pub fn link_hash_sync<P, T>(cache: P, target: T) -> Result<Integrity>
+pub fn link_to_hash_sync<P, T>(cache: P, target: T) -> Result<Integrity>
 where
     P: AsRef<Path>,
     T: AsRef<Path>,
 {
-    SyncLinker::open_hash(cache, target)?.commit()
+    SyncToLinker::open_hash(cache, target)?.commit()
 }
 
-/// Extend the `WriteOpts` struct with factories for creating `Linker` and
-/// `SyncLinker` instances.
+/// Extend the `WriteOpts` struct with factories for creating `ToLinker` and
+/// `SyncToLinker` instances.
 impl WriteOpts {
-    /// Opens the target file handle for reading, returning a Linker instance.
-    pub async fn link<P, K, T>(self, cache: P, key: K, target: T) -> Result<Linker>
+    /// Opens the target file handle for reading, returning a ToLinker instance.
+    pub async fn link_to<P, K, T>(self, cache: P, key: K, target: T) -> Result<ToLinker>
     where
         P: AsRef<Path>,
         K: AsRef<str>,
         T: AsRef<Path>,
     {
-        async fn inner(opts: WriteOpts, cache: &Path, key: &str, target: &Path) -> Result<Linker> {
-            Ok(Linker {
+        async fn inner(
+            opts: WriteOpts,
+            cache: &Path,
+            key: &str,
+            target: &Path,
+        ) -> Result<ToLinker> {
+            Ok(ToLinker {
                 cache: cache.to_path_buf(),
                 key: Some(String::from(key)),
                 read: 0,
-                linker: symlink::AsyncLinker::new(
+                linker: linkto::AsyncToLinker::new(
                     cache,
                     opts.algorithm.unwrap_or(Algorithm::Sha256),
                     target,
@@ -132,18 +137,18 @@ impl WriteOpts {
     }
 
     /// Opens the target file handle for reading, without a key, returning a
-    /// Linker instance.
-    pub async fn link_hash<P, T>(self, cache: P, target: T) -> Result<Linker>
+    /// ToLinker instance.
+    pub async fn link_to_hash<P, T>(self, cache: P, target: T) -> Result<ToLinker>
     where
         P: AsRef<Path>,
         T: AsRef<Path>,
     {
-        async fn inner(opts: WriteOpts, cache: &Path, target: &Path) -> Result<Linker> {
-            Ok(Linker {
+        async fn inner(opts: WriteOpts, cache: &Path, target: &Path) -> Result<ToLinker> {
+            Ok(ToLinker {
                 cache: cache.to_path_buf(),
                 key: None,
                 read: 0,
-                linker: symlink::AsyncLinker::new(
+                linker: linkto::AsyncToLinker::new(
                     cache,
                     opts.algorithm.unwrap_or(Algorithm::Sha256),
                     target,
@@ -156,19 +161,19 @@ impl WriteOpts {
     }
 
     /// Opens the target file handle for reading synchronously, returning a
-    /// SyncLinker instance.
-    pub fn link_sync<P, K, T>(self, cache: P, key: K, target: T) -> Result<SyncLinker>
+    /// SyncToLinker instance.
+    pub fn link_to_sync<P, K, T>(self, cache: P, key: K, target: T) -> Result<SyncToLinker>
     where
         P: AsRef<Path>,
         K: AsRef<str>,
         T: AsRef<Path>,
     {
-        fn inner(opts: WriteOpts, cache: &Path, key: &str, target: &Path) -> Result<SyncLinker> {
-            Ok(SyncLinker {
+        fn inner(opts: WriteOpts, cache: &Path, key: &str, target: &Path) -> Result<SyncToLinker> {
+            Ok(SyncToLinker {
                 cache: cache.to_path_buf(),
                 key: Some(String::from(key)),
                 read: 0,
-                linker: symlink::Linker::new(
+                linker: linkto::ToLinker::new(
                     cache,
                     opts.algorithm.unwrap_or(Algorithm::Sha256),
                     target,
@@ -180,18 +185,18 @@ impl WriteOpts {
     }
 
     /// Opens the target file handle for reading synchronously, without a key,
-    /// returning a SyncLinker instance.
-    pub fn link_hash_sync<P, T>(self, cache: P, target: T) -> Result<SyncLinker>
+    /// returning a SyncToLinker instance.
+    pub fn link_to_hash_sync<P, T>(self, cache: P, target: T) -> Result<SyncToLinker>
     where
         P: AsRef<Path>,
         T: AsRef<Path>,
     {
-        fn inner(opts: WriteOpts, cache: &Path, target: &Path) -> Result<SyncLinker> {
-            Ok(SyncLinker {
+        fn inner(opts: WriteOpts, cache: &Path, target: &Path) -> Result<SyncToLinker> {
+            Ok(SyncToLinker {
                 cache: cache.to_path_buf(),
                 key: None,
                 read: 0,
-                linker: symlink::Linker::new(
+                linker: linkto::ToLinker::new(
                     cache,
                     opts.algorithm.unwrap_or(Algorithm::Sha256),
                     target,
@@ -203,20 +208,20 @@ impl WriteOpts {
     }
 }
 
-/// A file handle for asynchronously reading data from a file to be added to the
-/// cache via a symlink.
+/// A file handle for asynchronously reading in data from a file to be added to
+/// the cache via a symlink to the target file.
 ///
 /// Make sure to call `.commit()` when done reading to actually add the file to
 /// the cache.
-pub struct Linker {
+pub struct ToLinker {
     cache: PathBuf,
     key: Option<String>,
     read: usize,
-    pub(crate) linker: symlink::AsyncLinker,
+    pub(crate) linker: linkto::AsyncToLinker,
     opts: WriteOpts,
 }
 
-impl AsyncRead for Linker {
+impl AsyncRead for ToLinker {
     #[cfg(feature = "async-std")]
     fn poll_read(
         mut self: Pin<&mut Self>,
@@ -248,7 +253,7 @@ fn filesize(target: &Path) -> Result<usize> {
         .len() as usize)
 }
 
-impl Linker {
+impl ToLinker {
     /// Creates a new asynchronous readable file handle into the cache.
     pub async fn open<P, K, T>(cache: P, key: K, target: T) -> Result<Self>
     where
@@ -256,12 +261,12 @@ impl Linker {
         K: AsRef<str>,
         T: AsRef<Path>,
     {
-        async fn inner(cache: &Path, key: &str, target: &Path) -> Result<Linker> {
-            let size = filesize(&target)?;
+        async fn inner(cache: &Path, key: &str, target: &Path) -> Result<ToLinker> {
+            let size = filesize(target)?;
             WriteOpts::new()
                 .algorithm(Algorithm::Sha256)
                 .size(size)
-                .link(cache, key, target)
+                .link_to(cache, key, target)
                 .await
         }
         inner(cache.as_ref(), key.as_ref(), target.as_ref()).await
@@ -273,20 +278,20 @@ impl Linker {
         P: AsRef<Path>,
         T: AsRef<Path>,
     {
-        async fn inner(cache: &Path, target: &Path) -> Result<Linker> {
-            let size = filesize(&target)?;
+        async fn inner(cache: &Path, target: &Path) -> Result<ToLinker> {
+            let size = filesize(target)?;
             WriteOpts::new()
                 .algorithm(Algorithm::Sha256)
                 .size(size)
-                .link_hash(cache, target)
+                .link_to_hash(cache, target)
                 .await
         }
         inner(cache.as_ref(), target.as_ref()).await
     }
 
-    /// Consumes the rest of the file handle, creates a symlink into the cache,
-    /// and creates index entries for the linked file. Also verifies data
-    /// against `size` and `integrity` options, if provided. Must be called
+    /// Consumes the rest of the file handle, creates an symlink into
+    /// the cache, and creates index entries for the linked file. Also verifies
+    /// data against `size` and `integrity` options, if provided. Must be called
     /// manually in order to complete the writing process, otherwise everything
     /// will be thrown out.
     pub async fn commit(mut self) -> Result<Integrity> {
@@ -338,15 +343,15 @@ impl Linker {
 ///
 /// Make sure to call `.commit()` when done reading to actually add the file
 /// to the cache.
-pub struct SyncLinker {
+pub struct SyncToLinker {
     cache: PathBuf,
     key: Option<String>,
     read: usize,
-    pub(crate) linker: symlink::Linker,
+    pub(crate) linker: linkto::ToLinker,
     opts: WriteOpts,
 }
 
-impl std::io::Read for SyncLinker {
+impl std::io::Read for SyncToLinker {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let amt = self.linker.read(buf)?;
         self.read += amt;
@@ -354,9 +359,9 @@ impl std::io::Read for SyncLinker {
     }
 }
 
-impl SyncLinker {
-    /// Creates a new readable file handle to a file that will be linked into
-    /// the cache, indexed at the provided key, on commit.
+impl SyncToLinker {
+    /// Creates a new readable file handle to a file the cache will link to,
+    /// indexed at the provided key, on commit.
     ///
     /// It is not necessary to read any of the file before calling `.commit()`.
     ///
@@ -366,7 +371,7 @@ impl SyncLinker {
     ///
     /// fn main() -> cacache::Result<()> {
     ///     let path = "../my-other-files/my-file.tgz";
-    ///     let mut fd = cacache::SyncLinker::open("./my-cache", "my-key", path)?;
+    ///     let mut fd = cacache::SyncToLinker::open("./my-cache", "my-key", path)?;
     ///     let mut str = String::new();
     ///     fd.read_to_string(&mut str).expect("Failed to read to string");
     ///     // The file is not linked into the cache until you commit it.
@@ -380,18 +385,18 @@ impl SyncLinker {
         K: AsRef<str>,
         T: AsRef<Path>,
     {
-        fn inner(cache: &Path, key: &str, target: &Path) -> Result<SyncLinker> {
-            let size = filesize(&target)?;
+        fn inner(cache: &Path, key: &str, target: &Path) -> Result<SyncToLinker> {
+            let size = filesize(target)?;
             WriteOpts::new()
                 .algorithm(Algorithm::Sha256)
                 .size(size)
-                .link_sync(cache, key, target)
+                .link_to_sync(cache, key, target)
         }
         inner(cache.as_ref(), key.as_ref(), target.as_ref())
     }
 
-    /// Creates a new readable file handle to a file that will be linked into
-    /// the cache, without an indexe key, on commit.
+    /// Creates a new readable file handle to a file that the cache will link
+    /// to, without an indexe key, on commit.
     ///
     /// It is not necessary to read any of the file before calling `.commit()`.
     ///
@@ -401,7 +406,7 @@ impl SyncLinker {
     ///
     /// fn main() -> cacache::Result<()> {
     ///     let path = "../my-other-files/my-file.tgz";
-    ///     let mut fd = cacache::SyncLinker::open_hash("./my-cache", path)?;
+    ///     let mut fd = cacache::SyncToLinker::open_hash("./my-cache", path)?;
     ///     let mut str = String::new();
     ///     fd.read_to_string(&mut str).expect("Failed to read to string");
     ///     // The file is not linked into the cache until you commit it.
@@ -414,21 +419,21 @@ impl SyncLinker {
         P: AsRef<Path>,
         T: AsRef<Path>,
     {
-        fn inner(cache: &Path, target: &Path) -> Result<SyncLinker> {
-            let size = filesize(&target)?;
+        fn inner(cache: &Path, target: &Path) -> Result<SyncToLinker> {
+            let size = filesize(target)?;
             WriteOpts::new()
                 .algorithm(Algorithm::Sha256)
                 .size(size)
-                .link_hash_sync(cache, target)
+                .link_to_hash_sync(cache, target)
         }
         inner(cache.as_ref(), target.as_ref())
     }
 
-    /// Consumes the rest of the file handle, creates a symlink into the cache,
-    /// and creates index entries for the linked file. Also verifies data
-    /// against `size` and `integrity` options, if provided. Must be called
-    /// manually in order to complete the writing process, otherwise everything
-    /// will be thrown out.
+    /// Consumes the rest of the file handle, creates a symlink to the file, and
+    /// creates index entries for the linked file. Also verifies data against
+    /// `size` and `integrity` options, if provided. Must be called manually in
+    /// order to complete the writing process, otherwise everything will be
+    /// thrown out.
     pub fn commit(mut self) -> Result<Integrity> {
         self.consume()?;
         let cache = self.cache;
@@ -501,46 +506,46 @@ mod tests {
 
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        crate::link(&dir, "my-key", target).await.unwrap();
+        crate::link_to(&dir, "my-key", target).await.unwrap();
 
         let buf = crate::read(&dir, "my-key").await.unwrap();
         assert_eq!(buf, b"hello world");
     }
 
     #[async_test]
-    async fn test_link_hash() {
+    async fn test_link_to_hash() {
         let tmp = tempfile::tempdir().unwrap();
         let target = create_tmpfile(&tmp, b"hello world");
 
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let sri = crate::link_hash(&dir, target).await.unwrap();
+        let sri = crate::link_to_hash(&dir, target).await.unwrap();
 
         let buf = crate::read_hash(&dir, &sri).await.unwrap();
         assert_eq!(buf, b"hello world");
     }
 
     #[test]
-    fn test_link_sync() {
+    fn test_link_to_sync() {
         let tmp = tempfile::tempdir().unwrap();
         let target = create_tmpfile(&tmp, b"hello world");
 
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        crate::link_sync(&dir, "my-key", target).unwrap();
+        crate::link_to_sync(&dir, "my-key", target).unwrap();
 
         let buf = crate::read_sync(&dir, "my-key").unwrap();
         assert_eq!(buf, b"hello world");
     }
 
     #[test]
-    fn test_link_hash_sync() {
+    fn test_link_to_hash_sync() {
         let tmp = tempfile::tempdir().unwrap();
         let target = create_tmpfile(&tmp, b"hello world");
 
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let sri = crate::link_hash_sync(&dir, target).unwrap();
+        let sri = crate::link_to_hash_sync(&dir, target).unwrap();
 
         let buf = crate::read_hash_sync(&dir, &sri).unwrap();
         assert_eq!(buf, b"hello world");
@@ -553,7 +558,7 @@ mod tests {
 
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let mut handle = crate::Linker::open(&dir, "my-key", target).await.unwrap();
+        let mut handle = crate::ToLinker::open(&dir, "my-key", target).await.unwrap();
 
         let mut buf = Vec::new();
         handle.read_to_end(&mut buf).await.unwrap();
@@ -571,7 +576,7 @@ mod tests {
 
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let mut handle = crate::Linker::open_hash(&dir, target).await.unwrap();
+        let mut handle = crate::ToLinker::open_hash(&dir, target).await.unwrap();
 
         let mut buf = Vec::new();
         handle.read_to_end(&mut buf).await.unwrap();
@@ -589,7 +594,7 @@ mod tests {
 
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let mut handle = crate::SyncLinker::open(&dir, "my-key", target).unwrap();
+        let mut handle = crate::SyncToLinker::open(&dir, "my-key", target).unwrap();
 
         let mut buf = Vec::new();
         handle.read_to_end(&mut buf).unwrap();
@@ -607,7 +612,7 @@ mod tests {
 
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let mut handle = crate::SyncLinker::open_hash(&dir, target).unwrap();
+        let mut handle = crate::SyncToLinker::open_hash(&dir, target).unwrap();
 
         let mut buf = Vec::new();
         handle.read_to_end(&mut buf).unwrap();

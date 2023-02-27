@@ -63,8 +63,8 @@ Minimum supported Rust version is `1.43.0`.
 cacache = { version = "*", default-features = false, features = ["tokio-runtime"] }
 ```
 
-Experimental support for tracking existing files through symlinks is provided
-via the "link" feature.
+Experimental support for symlinking to existing files is provided via the
+"link_to" feature.
 
 ## Contributing
 

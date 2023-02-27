@@ -59,9 +59,9 @@ fn create_symlink(sri: Integrity, cache: &PathBuf, target: &PathBuf) -> Result<I
 }
 
 /// A `Read`-like type that calculates the integrity of a file as it is read.
-/// When the linker is committed, the file is symlinked into the cache using the
-/// integrity computed from the target file's contents.
-pub struct Linker {
+/// When the linker is committed, a symlink is created from the cache to the
+/// target file using the integrity computed from the file's contents.
+pub struct ToLinker {
     /// The path to the target file that will be symlinked from the cache.
     target: PathBuf,
     /// The path to the root of the cache directory.
@@ -72,7 +72,7 @@ pub struct Linker {
     builder: IntegrityOpts,
 }
 
-impl Linker {
+impl ToLinker {
     pub fn new(cache: &Path, algo: Algorithm, target: &Path) -> Result<Self> {
         let file = File::open(target)
             .with_context(|| format!("Failed to open reader to {}", target.display()))?;
@@ -84,13 +84,13 @@ impl Linker {
         })
     }
 
-    /// Consume the Linker and commit the symlink to the cache.
+    /// Add the symlink to the target file from the cache.
     pub fn commit(self) -> Result<Integrity> {
         create_symlink(self.builder.result(), &self.cache, &self.target)
     }
 }
 
-impl std::io::Read for Linker {
+impl std::io::Read for ToLinker {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let amt = self.fd.read(buf)?;
         if amt > 0 {
@@ -101,9 +101,9 @@ impl std::io::Read for Linker {
 }
 
 /// An `AsyncRead`-like type that calculates the integrity of a file as it is
-/// read. When the linker is committed, the file is symlinked into the cache
-/// using the integrity computed from the target file's contents.
-pub struct AsyncLinker {
+/// read. When the linker is committed, a symlink is created from the cache to
+/// the target file using the integrity computed from the file's contents.
+pub struct AsyncToLinker {
     /// The path to the target file that will be symlinked from the cache.
     target: PathBuf,
     /// The path to the root of the cache directory.
@@ -114,7 +114,7 @@ pub struct AsyncLinker {
     builder: IntegrityOpts,
 }
 
-impl AsyncRead for AsyncLinker {
+impl AsyncRead for AsyncToLinker {
     #[cfg(feature = "async-std")]
     fn poll_read(
         mut self: Pin<&mut Self>,
@@ -143,7 +143,7 @@ impl AsyncRead for AsyncLinker {
     }
 }
 
-impl AsyncLinker {
+impl AsyncToLinker {
     pub async fn new(cache: &Path, algo: Algorithm, target: &Path) -> Result<Self> {
         let file = crate::async_lib::File::open(target)
             .await
@@ -156,7 +156,7 @@ impl AsyncLinker {
         })
     }
 
-    /// Consume the Linker and commit the symlink to the cache.
+    /// Add the symlink to the target file from the cache.
     pub async fn commit(self) -> Result<Integrity> {
         create_symlink(self.builder.result(), &self.cache, &self.target)
     }
@@ -195,7 +195,7 @@ mod tests {
 
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let mut linker = Linker::new(&dir, Algorithm::Sha256, &target).unwrap();
+        let mut linker = ToLinker::new(&dir, Algorithm::Sha256, &target).unwrap();
 
         // read all of the data from the linker, which will calculate the integrity
         // hash.
@@ -223,7 +223,7 @@ mod tests {
 
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
-        let mut linker = AsyncLinker::new(&dir, Algorithm::Sha256, &target)
+        let mut linker = AsyncToLinker::new(&dir, Algorithm::Sha256, &target)
             .await
             .unwrap();
 

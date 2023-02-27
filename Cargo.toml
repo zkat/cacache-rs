@@ -53,5 +53,5 @@ harness = false
 
 [features]
 default = ["async-std", "async-attributes"]
-link = []
+link_to = []
 tokio-runtime = ["tokio", "tokio-stream"]
