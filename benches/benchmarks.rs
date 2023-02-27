@@ -22,6 +22,7 @@ where
 
 use std::fs::{self, File};
 use std::io::prelude::*;
+use std::path::PathBuf;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -207,6 +208,82 @@ fn write_hash_async(c: &mut Criterion) {
     });
 }
 
+#[cfg(feature = "link_to")]
+fn create_tmpfile(tmp: &tempfile::TempDir, buf: &[u8]) -> PathBuf {
+    let dir = tmp.path().to_owned();
+    let target = dir.join("target-file");
+    std::fs::create_dir_all(target.parent().unwrap().clone()).unwrap();
+    let mut file = File::create(target.clone()).unwrap();
+    file.write_all(buf).unwrap();
+    file.flush().unwrap();
+    target
+}
+
+#[cfg(feature = "link_to")]
+fn link_to_async(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let target = create_tmpfile(&tmp, b"hello world");
+
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    c.bench_function("link_to::file", move |b| {
+        b.iter_custom(|iters| {
+            let start = std::time::Instant::now();
+            for i in 0..iters {
+                block_on(cacache::link_to(
+                    &cache,
+                    format!("key{}", i),
+                    target.clone(),
+                ))
+                .unwrap();
+            }
+            start.elapsed()
+        })
+    });
+}
+
+#[cfg(feature = "link_to")]
+fn link_to_hash_async(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let target = create_tmpfile(&tmp, b"hello world");
+
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    c.bench_function("link_to::file_hash", move |b| {
+        b.iter(|| block_on(cacache::link_to_hash(&cache, target.clone())).unwrap())
+    });
+}
+
+#[cfg(feature = "link_to")]
+fn link_to_sync(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let target = create_tmpfile(&tmp, b"hello world");
+
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    c.bench_function("link_to::file_sync", move |b| {
+        b.iter_custom(|iters| {
+            let start = std::time::Instant::now();
+            for i in 0..iters {
+                cacache::link_to_sync(&cache, format!("key{}", i), target.clone()).unwrap();
+            }
+            start.elapsed()
+        })
+    });
+}
+
+#[cfg(feature = "link_to")]
+fn link_to_hash_sync(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let target = create_tmpfile(&tmp, b"hello world");
+
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    c.bench_function("link_to::file_hash_sync", move |b| {
+        b.iter(|| cacache::link_to_hash_sync(&cache, target.clone()).unwrap())
+    });
+}
+
 criterion_group!(
     benches,
     baseline_read_sync,
@@ -223,4 +300,17 @@ criterion_group!(
     read_hash_async_big_data,
     read_hash_sync_big_data
 );
+
+#[cfg(feature = "link_to")]
+criterion_group!(
+    link_to_benches,
+    link_to_async,
+    link_to_hash_async,
+    link_to_sync,
+    link_to_hash_sync
+);
+
+#[cfg(feature = "link_to")]
+criterion_main!(benches, link_to_benches);
+#[cfg(not(feature = "link_to"))]
 criterion_main!(benches);

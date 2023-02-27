@@ -121,6 +121,27 @@
 //!   Ok(())
 //! }
 //! ```
+//!
+//! ### Linking to existing files
+//!
+//! The `link_to` feature enables an additional set of APIs for adding existing
+//! files into the cache via symlinks, without having to duplicate their data.
+//! Once the cache links to them, these files can be accessed by key just like
+//! other cached data, with the same integrity checking.
+//!
+//! The `link_to` methods are available in both async and sync variants, using
+//! the same suffixes as the other APIs.
+//!
+//! ```no_run
+//! #[async_attributes::main]
+//! async fn main() -> cacache::Result<()> {
+//!   #[cfg(feature = "link_to")]
+//!   cacache::link_to("./my-cache", "key", "/path/to/my-other-file.txt").await?;
+//!   let data = cacache::read("./my-cache", "key").await?;
+//!   assert_eq!(data, b"my-data");
+//!   Ok(())
+//! }
+//! ```
 #![warn(missing_docs)]
 
 #[cfg(not(any(feature = "async-std", feature = "tokio-runtime")))]
@@ -139,6 +160,8 @@ mod errors;
 pub mod index;
 
 mod get;
+#[cfg(feature = "link_to")]
+mod linkto;
 mod ls;
 mod put;
 mod rm;
@@ -147,6 +170,8 @@ pub use errors::{Error, Result};
 pub use index::Metadata;
 
 pub use get::*;
+#[cfg(feature = "link_to")]
+pub use linkto::*;
 pub use ls::*;
 pub use put::*;
 pub use rm::*;

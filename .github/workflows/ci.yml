@@ -43,10 +43,10 @@ jobs:
       - name: Clippy
         run: cargo clippy -- -D warnings
       - name: Check (async-std)
-        run: cargo check
+        run: cargo check --features link_to
       - name: Run tests (async-std)
-        run: cargo test --verbose
+        run: cargo test --verbose  --features link_to
       - name: Check (Tokio)
-        run: cargo check --no-default-features --features tokio-runtime
+        run: cargo check --no-default-features --features tokio-runtime,link_to
       - name: Run unit tests (Tokio)
-        run: cargo test --verbose --no-default-features --features tokio-runtime --lib
+        run: cargo test --verbose --no-default-features --features tokio-runtime,link_to --lib
