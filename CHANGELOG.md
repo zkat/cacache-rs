@@ -1,5 +1,13 @@
 # `cacache` Release Changelog
 
+<a name="11.2.0"></a>
+## 11.2.0 (2023-02-28)
+
+### Features
+
+* **link_to:** Add support for linking to existing files from the cache (#41) ([ac56fd9c](https://github.com/zkat/cacache-rs/commit/ac56fd9ce6a453a707df9a0603fc041e4e785d79))
+* **copy:** add support for reflink-copy and unsafe-copy (#42) ([d39e8380](https://github.com/zkat/cacache-rs/commit/d39e83801dc4f1e6479dacd50dcf1372658a598f))
+
 <a name="11.1.0"></a>
 ## 11.1.0 (2023-02-19)
 
