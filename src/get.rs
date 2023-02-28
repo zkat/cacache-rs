@@ -185,6 +185,9 @@ where
 /// Copies cache data to a specified location. Returns the number of bytes
 /// copied.
 ///
+/// On platforms that support it, this will create a copy-on-write "reflink"
+/// with a full-copy fallback.
+///
 /// ## Example
 /// ```no_run
 /// use async_std::prelude::*;
@@ -212,8 +215,44 @@ where
     inner(cache.as_ref(), key.as_ref(), to.as_ref()).await
 }
 
+/// Copies cache data to a specified location. Cache data will not be checked
+/// during copy.
+///
+/// On platforms that support it, this will create a copy-on-write "reflink"
+/// with a full-copy fallback.
+///
+/// ## Example
+/// ```no_run
+/// use async_std::prelude::*;
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     cacache::copy_unchecked("./my-cache", "my-key", "./data.txt").await?;
+///     Ok(())
+/// }
+/// ```
+pub async fn copy_unchecked<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+    Q: AsRef<Path>,
+{
+    async fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
+        if let Some(entry) = index::find_async(cache, key).await? {
+            copy_hash_unchecked(cache, &entry.integrity, to).await
+        } else {
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
+        }
+    }
+    inner(cache.as_ref(), key.as_ref(), to.as_ref()).await
+}
+
 /// Copies a cache data by hash to a specified location. Returns the number of
 /// bytes copied.
+///
+/// On platforms that support it, this will create a copy-on-write "reflink"
+/// with a full-copy fallback.
 ///
 /// ## Example
 /// ```no_run
@@ -233,6 +272,32 @@ where
     Q: AsRef<Path>,
 {
     read::copy_async(cache.as_ref(), sri, to.as_ref()).await
+}
+
+/// Copies a cache data by hash to a specified location. Copied data will not
+/// be checked against the given hash.
+///
+/// On platforms that support it, this will create a copy-on-write "reflink"
+/// with a full-copy fallback.
+///
+/// ## Example
+/// ```no_run
+/// use async_std::prelude::*;
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     let sri = cacache::write("./my-cache", "my-key", b"hello world").await?;
+///     cacache::copy_hash_unchecked("./my-cache", &sri, "./data.txt").await?;
+///     Ok(())
+/// }
+/// ```
+pub async fn copy_hash_unchecked<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    Q: AsRef<Path>,
+{
+    read::copy_unchecked_async(cache.as_ref(), sri, to.as_ref()).await
 }
 
 /// Gets the metadata entry for a certain key.
@@ -401,6 +466,9 @@ where
 /// Copies a cache entry by key to a specified location. Returns the number of
 /// bytes copied.
 ///
+/// On platforms that support it, this will create a copy-on-write "reflink"
+/// with a full-copy fallback.
+///
 /// ## Example
 /// ```no_run
 /// use std::io::Read;
@@ -426,8 +494,42 @@ where
     inner(cache.as_ref(), key.as_ref(), to.as_ref())
 }
 
+/// Copies a cache entry by key to a specified location. Does not verify cache
+/// contents while copying.
+///
+/// On platforms that support it, this will create a copy-on-write "reflink"
+/// with a full-copy fallback.
+///
+/// ## Example
+/// ```no_run
+/// use std::io::Read;
+///
+/// fn main() -> cacache::Result<()> {
+///     cacache::copy_unchecked_sync("./my-cache", "my-key", "./my-hello.txt")?;
+///     Ok(())
+/// }
+/// ```
+pub fn copy_unchecked_sync<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+    Q: AsRef<Path>,
+{
+    fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
+        if let Some(entry) = index::find(cache, key)? {
+            copy_hash_unchecked_sync(cache, &entry.integrity, to)
+        } else {
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
+        }
+    }
+    inner(cache.as_ref(), key.as_ref(), to.as_ref())
+}
+
 /// Copies a cache entry by integrity address to a specified location. Returns
 /// the number of bytes copied.
+///
+/// On platforms that support it, this will create a copy-on-write "reflink"
+/// with a full-copy fallback.
 ///
 /// ## Example
 /// ```no_run
@@ -445,6 +547,30 @@ where
     Q: AsRef<Path>,
 {
     read::copy(cache.as_ref(), sri, to.as_ref())
+}
+
+/// Copies a cache entry by integrity address to a specified location. Does
+/// not verify cache contents while copying.
+///
+/// On platforms that support it, this will create a copy-on-write "reflink"
+/// with a full-copy fallback.
+///
+/// ## Example
+/// ```no_run
+/// use std::io::Read;
+///
+/// fn main() -> cacache::Result<()> {
+///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello")?;
+///     cacache::copy_hash_unchecked_sync("./my-cache", &sri, "./my-hello.txt")?;
+///     Ok(())
+/// }
+/// ```
+pub fn copy_hash_unchecked_sync<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    Q: AsRef<Path>,
+{
+    read::copy_unchecked(cache.as_ref(), sri, to.as_ref())
 }
 
 /// Gets metadata for a certain key.

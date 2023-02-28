@@ -124,52 +124,79 @@ pub async fn read_async<'a>(cache: &'a Path, sri: &'a Integrity) -> Result<Vec<u
     Ok(ret)
 }
 
-pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64> {
+pub fn copy_unchecked(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
     let cpath = path::content_path(cache, sri);
-    let ret = fs::copy(&cpath, to).with_context(|| {
+    reflink::reflink_or_copy(cpath, to).with_context(|| {
         format!(
             "Failed to copy cache contents from {} to {}",
             path::content_path(cache, sri).display(),
             to.display()
         )
     })?;
-    let mut reader = open(cache, sri.clone())?;
-    let mut buf: [u8; 1024] = [0; 1024];
-    while reader.read(&mut buf).with_context(|| {
-        format!(
-            "Failed to read cache contents while verifying integrity for {}",
-            path::content_path(cache, sri).display()
-        )
-    })? > 0
-    {}
-    reader.check()?;
-
-    Ok(ret)
+    Ok(())
 }
 
-pub async fn copy_async<'a>(cache: &'a Path, sri: &'a Integrity, to: &'a Path) -> Result<u64> {
-    let cpath = path::content_path(cache, sri);
-    let ret = crate::async_lib::copy(&cpath, to).await.with_context(|| {
-        format!(
-            "Failed to copy cache contents from {} to {}",
-            path::content_path(cache, sri).display(),
-            to.display()
-        )
-    })?;
-    let mut reader = open_async(cache, sri.clone()).await?;
+pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64> {
+    copy_unchecked(cache, sri, to)?;
+    let mut reader = open(cache, sri.clone())?;
     let mut buf: [u8; 1024] = [0; 1024];
-    while AsyncReadExt::read(&mut reader, &mut buf)
-        .await
-        .with_context(|| {
+    let mut size = 0;
+    loop {
+        let read = reader.read(&mut buf).with_context(|| {
             format!(
                 "Failed to read cache contents while verifying integrity for {}",
                 path::content_path(cache, sri).display()
             )
-        })?
-        > 0
-    {}
+        })?;
+        size += read;
+        if read == 0 {
+            break;
+        }
+    }
     reader.check()?;
-    Ok(ret)
+
+    Ok(size as u64)
+}
+
+pub async fn copy_unchecked_async<'a>(
+    cache: &'a Path,
+    sri: &'a Integrity,
+    to: &'a Path,
+) -> Result<()> {
+    let cpath = path::content_path(cache, sri);
+    if reflink::reflink(&cpath, to).is_err() {
+        crate::async_lib::copy(&cpath, to).await.with_context(|| {
+            format!(
+                "Failed to copy cache contents from {} to {}",
+                path::content_path(cache, sri).display(),
+                to.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+pub async fn copy_async<'a>(cache: &'a Path, sri: &'a Integrity, to: &'a Path) -> Result<u64> {
+    copy_unchecked_async(cache, sri, to).await?;
+    let mut reader = open_async(cache, sri.clone()).await?;
+    let mut buf: [u8; 1024] = [0; 1024];
+    let mut size = 0;
+    loop {
+        let read = AsyncReadExt::read(&mut reader, &mut buf)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to read cache contents while verifying integrity for {}",
+                    path::content_path(cache, sri).display()
+                )
+            })?;
+        size += read;
+        if read == 0 {
+            break;
+        }
+    }
+    reader.check()?;
+    Ok(size as u64)
 }
 
 pub fn has_content(cache: &Path, sri: &Integrity) -> Option<Integrity> {
