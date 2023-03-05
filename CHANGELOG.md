@@ -1,5 +1,12 @@
 # `cacache` Release Changelog
 
+<a name="11.3.0"></a>
+## 11.3.0 (2023-03-05)
+
+### Features
+
+* **links:** add support for hard linking from the cache (#43) ([89eee6c1](https://github.com/zkat/cacache-rs/commit/89eee6c1aebd3b271619a4b55fac7f0afc5f07bb))
+
 <a name="11.2.0"></a>
 ## 11.2.0 (2023-02-28)
 
