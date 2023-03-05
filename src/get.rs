@@ -300,6 +300,23 @@ where
     read::copy_unchecked_async(cache.as_ref(), sri, to.as_ref()).await
 }
 
+/// Hard links a cache entry by key to a specified location.
+pub async fn hard_link<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+    Q: AsRef<Path>,
+{
+    async fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
+        if let Some(entry) = index::find(cache, key)? {
+            read::hard_link_async(cache, &entry.integrity, to).await
+        } else {
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
+        }
+    }
+    inner(cache.as_ref(), key.as_ref(), to.as_ref()).await
+}
+
 /// Gets the metadata entry for a certain key.
 ///
 /// Note that the existence of a metadata entry is not a guarantee that the
@@ -571,6 +588,55 @@ where
     Q: AsRef<Path>,
 {
     read::copy_unchecked(cache.as_ref(), sri, to.as_ref())
+}
+
+/// Hard links a cache entry by key to a specified location. The cache entry
+/// contents will not be checked, and all the usual caveats of hard links
+/// apply: The potentially-shared cache might be corrupted if the hard link is
+/// modified.
+pub fn hard_link_unchecked_sync<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+    Q: AsRef<Path>,
+{
+    fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
+        if let Some(entry) = index::find(cache, key)? {
+            hard_link_hash_unchecked_sync(cache, &entry.integrity, to)
+        } else {
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
+        }
+    }
+    inner(cache.as_ref(), key.as_ref(), to.as_ref())
+}
+
+/// Hard links a cache entry by key to a specified location.
+pub fn hard_link_sync<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+    Q: AsRef<Path>,
+{
+    fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
+        if let Some(entry) = index::find(cache, key)? {
+            read::hard_link(cache, &entry.integrity, to)
+        } else {
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
+        }
+    }
+    inner(cache.as_ref(), key.as_ref(), to.as_ref())
+}
+
+/// Hard links a cache entry by integrity address to a specified location. The
+/// cache entry contents will not be checked, and all the usual caveats of
+/// hard links apply: The potentially-shared cache might be corrupted if the
+/// hard link is modified.
+pub fn hard_link_hash_unchecked_sync<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    Q: AsRef<Path>,
+{
+    read::hard_link_unchecked(cache.as_ref(), sri, to.as_ref())
 }
 
 /// Gets metadata for a certain key.

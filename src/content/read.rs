@@ -199,6 +199,58 @@ pub async fn copy_async<'a>(cache: &'a Path, sri: &'a Integrity, to: &'a Path) -
     Ok(size as u64)
 }
 
+pub fn hard_link_unchecked(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
+    let cpath = path::content_path(cache, sri);
+    std::fs::hard_link(cpath, to).with_context(|| {
+        format!(
+            "Failed to link cache contents from {} to {}",
+            path::content_path(cache, sri).display(),
+            to.display()
+        )
+    })?;
+    Ok(())
+}
+
+pub fn hard_link(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
+    hard_link_unchecked(cache, sri, to)?;
+    let mut reader = open(cache, sri.clone())?;
+    let mut buf = [0u8; 1024 * 8];
+    loop {
+        let read = reader.read(&mut buf).with_context(|| {
+            format!(
+                "Failed to read cache contents while verifying integrity for {}",
+                path::content_path(cache, sri).display()
+            )
+        })?;
+        if read == 0 {
+            break;
+        }
+    }
+    reader.check()?;
+    Ok(())
+}
+
+pub async fn hard_link_async(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
+    hard_link_unchecked(cache, sri, to)?;
+    let mut reader = open_async(cache, sri.clone()).await?;
+    let mut buf = [0u8; 1024 * 8];
+    loop {
+        let read = AsyncReadExt::read(&mut reader, &mut buf)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to read cache contents while verifying integrity for {}",
+                    path::content_path(cache, sri).display()
+                )
+            })?;
+        if read == 0 {
+            break;
+        }
+    }
+    reader.check()?;
+    Ok(())
+}
+
 pub fn has_content(cache: &Path, sri: &Integrity) -> Option<Integrity> {
     if path::content_path(cache, sri).exists() {
         Some(sri.clone())

@@ -1,5 +1,7 @@
 #[cfg(feature = "async-std")]
 use async_std::fs as afs;
+#[cfg(feature = "link_to")]
+use std::path::PathBuf;
 #[cfg(all(test, feature = "tokio"))]
 use tokio::fs as afs;
 
@@ -22,7 +24,6 @@ where
 
 use std::fs::{self, File};
 use std::io::prelude::*;
-use std::path::PathBuf;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
