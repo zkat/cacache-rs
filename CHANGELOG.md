@@ -1,5 +1,16 @@
 # `cacache` Release Changelog
 
+<a name="11.4.0"></a>
+## 11.4.0 (2023-03-10)
+
+### Features
+
+* **link:** implement hard_link_hash_sync too ([b88217cc](https://github.com/zkat/cacache-rs/commit/b88217cc548a91d0c168f8604a32b78f3366fe46))
+
+### Bug Fixes
+
+* **security:** bump tempfile version to 3.4.0 (#45) ([02d7f146](https://github.com/zkat/cacache-rs/commit/02d7f146f17c5db3f1c6e3970dc378493254b23d))
+
 <a name="11.3.0"></a>
 ## 11.3.0 (2023-03-05)
 
