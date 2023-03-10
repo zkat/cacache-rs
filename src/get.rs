@@ -627,6 +627,16 @@ where
     inner(cache.as_ref(), key.as_ref(), to.as_ref())
 }
 
+/// Hard links a cache entry by integrity address to a specified location,
+/// verifying contents as hard links are created.
+pub fn hard_link_hash_sync<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    Q: AsRef<Path>,
+{
+    read::hard_link(cache.as_ref(), sri, to.as_ref())
+}
+
 /// Hard links a cache entry by integrity address to a specified location. The
 /// cache entry contents will not be checked, and all the usual caveats of
 /// hard links apply: The potentially-shared cache might be corrupted if the
