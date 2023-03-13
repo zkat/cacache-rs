@@ -6,6 +6,7 @@ use std::task::{Context, Poll};
 
 #[cfg(feature = "async-std")]
 use futures::io::AsyncReadExt;
+use memmap2::Mmap;
 #[cfg(feature = "tokio")]
 use tokio::io::AsyncReadExt;
 
@@ -14,6 +15,8 @@ use ssri::{Algorithm, Integrity, IntegrityChecker};
 use crate::async_lib::AsyncRead;
 use crate::content::path;
 use crate::errors::{IoErrorExt, Result};
+
+pub const MAX_MMAP_SIZE: u64 = 1024 * 1024;
 
 pub struct Reader {
     fd: File,
@@ -138,23 +141,7 @@ pub fn copy_unchecked(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
 
 pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64> {
     copy_unchecked(cache, sri, to)?;
-    let mut reader = open(cache, sri.clone())?;
-    let mut buf: [u8; 1024] = [0; 1024];
-    let mut size = 0;
-    loop {
-        let read = reader.read(&mut buf).with_context(|| {
-            format!(
-                "Failed to read cache contents while verifying integrity for {}",
-                path::content_path(cache, sri).display()
-            )
-        })?;
-        size += read;
-        if read == 0 {
-            break;
-        }
-    }
-    reader.check()?;
-
+    let size = validate_contents(cache, sri)?;
     Ok(size as u64)
 }
 
@@ -178,24 +165,7 @@ pub async fn copy_unchecked_async<'a>(
 
 pub async fn copy_async<'a>(cache: &'a Path, sri: &'a Integrity, to: &'a Path) -> Result<u64> {
     copy_unchecked_async(cache, sri, to).await?;
-    let mut reader = open_async(cache, sri.clone()).await?;
-    let mut buf: [u8; 1024] = [0; 1024];
-    let mut size = 0;
-    loop {
-        let read = AsyncReadExt::read(&mut reader, &mut buf)
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to read cache contents while verifying integrity for {}",
-                    path::content_path(cache, sri).display()
-                )
-            })?;
-        size += read;
-        if read == 0 {
-            break;
-        }
-    }
-    reader.check()?;
+    let size = validate_contents_async(cache, sri).await?;
     Ok(size as u64)
 }
 
@@ -213,41 +183,13 @@ pub fn hard_link_unchecked(cache: &Path, sri: &Integrity, to: &Path) -> Result<(
 
 pub fn hard_link(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
     hard_link_unchecked(cache, sri, to)?;
-    let mut reader = open(cache, sri.clone())?;
-    let mut buf = [0u8; 1024 * 8];
-    loop {
-        let read = reader.read(&mut buf).with_context(|| {
-            format!(
-                "Failed to read cache contents while verifying integrity for {}",
-                path::content_path(cache, sri).display()
-            )
-        })?;
-        if read == 0 {
-            break;
-        }
-    }
-    reader.check()?;
+    validate_contents(cache, sri)?;
     Ok(())
 }
 
 pub async fn hard_link_async(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
     hard_link_unchecked(cache, sri, to)?;
-    let mut reader = open_async(cache, sri.clone()).await?;
-    let mut buf = [0u8; 1024 * 8];
-    loop {
-        let read = AsyncReadExt::read(&mut reader, &mut buf)
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to read cache contents while verifying integrity for {}",
-                    path::content_path(cache, sri).display()
-                )
-            })?;
-        if read == 0 {
-            break;
-        }
-    }
-    reader.check()?;
+    validate_contents_async(cache, sri).await?;
     Ok(())
 }
 
@@ -268,4 +210,83 @@ pub async fn has_content_async(cache: &Path, sri: &Integrity) -> Option<Integrit
     } else {
         None
     }
+}
+
+fn validate_contents(cache: &Path, sri: &Integrity) -> Result<usize> {
+    let mut reader = open(cache, sri.clone())?;
+    let size = reader
+        .fd
+        .metadata()
+        .with_context(|| {
+            format!(
+                "failed to get file metadata while verifying integrity for {}",
+                path::content_path(cache, sri).display()
+            )
+        })?
+        .len();
+    if size <= MAX_MMAP_SIZE {
+        let data = unsafe { Mmap::map(&reader.fd) }.with_context(|| {
+            format!(
+                "Failed to mmap cache contents while verifying integrity for {}",
+                path::content_path(cache, sri).display()
+            )
+        })?;
+        reader.checker.input(&data);
+    } else {
+        let mut buf = [0u8; 1024 * 8];
+        loop {
+            let read = reader.read(&mut buf).with_context(|| {
+                format!(
+                    "Failed to read cache contents while verifying integrity for {}",
+                    path::content_path(cache, sri).display()
+                )
+            })?;
+            if read == 0 {
+                break;
+            }
+        }
+    }
+    reader.check()?;
+    Ok(size as usize)
+}
+
+async fn validate_contents_async(cache: &Path, sri: &Integrity) -> Result<usize> {
+    let mut reader = open_async(cache, sri.clone()).await?;
+    let mut buf = [0u8; 1024 * 8];
+    let size = reader
+        .fd
+        .metadata()
+        .await
+        .with_context(|| {
+            format!(
+                "failed to get file metadata while verifying integrity for {}",
+                path::content_path(cache, sri).display()
+            )
+        })?
+        .len();
+    if size <= MAX_MMAP_SIZE {
+        let data = unsafe { Mmap::map(&reader.fd) }.with_context(|| {
+            format!(
+                "Failed to mmap cache contents while verifying integrity for {}",
+                path::content_path(cache, sri).display()
+            )
+        })?;
+        reader.checker.input(&data);
+    } else {
+        loop {
+            let read = AsyncReadExt::read(&mut reader, &mut buf)
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to read cache contents while verifying integrity for {}",
+                        path::content_path(cache, sri).display()
+                    )
+                })?;
+            if read == 0 {
+                break;
+            }
+        }
+    }
+    reader.check()?;
+    Ok(size as usize)
 }
