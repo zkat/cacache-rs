@@ -1,5 +1,12 @@
 # `cacache` Release Changelog
 
+<a name="11.5.2"></a>
+## 11.5.2 (2023-04-01)
+
+### Bug Fixes
+
+* **deps:** move async-attributes over to dev-dependencies ([b7c10eca](https://github.com/zkat/cacache-rs/commit/b7c10ecaaf38893507ac8cba27a8ba45eb309dce))
+
 <a name="11.5.1"></a>
 ## 11.5.1 (2023-04-01)
 
