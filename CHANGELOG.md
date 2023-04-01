@@ -1,5 +1,16 @@
 # `cacache` Release Changelog
 
+<a name="11.5.0"></a>
+## 11.5.0 (2023-04-01)
+
+This release upgrades miette and thiserror in lockstep, bringing in syn2, in
+order to avoid [potential issues with the
+upgrade](https://github.com/yaahc/eyre/pull/92).
+
+### Features
+
+* **deps:** bump miette and thiserror ([364f9da6](https://github.com/zkat/cacache-rs/commit/364f9da65eccedc51af9e05ab326496fb98d4ed7))
+
 <a name="11.4.0"></a>
 ## 11.4.0 (2023-03-10)
 
