@@ -6,6 +6,7 @@ use std::sync::Mutex;
 use std::task::{Context, Poll};
 
 use futures::prelude::*;
+#[cfg(feature = "mmap")]
 use memmap2::MmapMut;
 use ssri::{Algorithm, Integrity, IntegrityOpts};
 use tempfile::NamedTempFile;
@@ -14,7 +15,22 @@ use crate::async_lib::{AsyncWrite, JoinHandle};
 use crate::content::path;
 use crate::errors::{IoErrorExt, Result};
 
+#[cfg(feature = "mmap")]
 pub const MAX_MMAP_SIZE: usize = 1024 * 1024;
+
+#[cfg(not(feature = "mmap"))]
+struct MmapMut;
+
+#[cfg(not(feature = "mmap"))]
+impl MmapMut {
+    fn flush_async(&self) -> std::io::Result<()> {
+        panic!()
+    }
+
+    fn copy_from_slice(&self, _: &[u8]) {
+        panic!()
+    }
+}
 
 pub struct Writer {
     cache: PathBuf,
@@ -44,24 +60,7 @@ impl Writer {
                 tmp_path_clone.display()
             )
         })?;
-        let mmap = if let Some(size) = size {
-            if size <= MAX_MMAP_SIZE {
-                tmpfile
-                    .as_file_mut()
-                    .set_len(size as u64)
-                    .with_context(|| {
-                        format!(
-                            "Failed to configure file length for temp file at {}",
-                            tmpfile.path().display()
-                        )
-                    })?;
-                unsafe { MmapMut::map_mut(tmpfile.as_file()).ok() }
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+        let mmap = make_mmap(&mut tmpfile, size)?;
         Ok(Writer {
             cache: cache_path,
             builder: IntegrityOpts::new().algorithm(algo),
@@ -162,24 +161,7 @@ impl AsyncWriter {
                 )
             })?;
         let mut tmpfile = crate::async_lib::create_named_tempfile(tmp_path).await?;
-        let mmap = if let Some(size) = size {
-            if size <= MAX_MMAP_SIZE {
-                tmpfile
-                    .as_file_mut()
-                    .set_len(size as u64)
-                    .with_context(|| {
-                        format!(
-                            "Failed to configure file length for temp file at {}",
-                            tmpfile.path().display()
-                        )
-                    })?;
-                unsafe { MmapMut::map_mut(tmpfile.as_file()).ok() }
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+        let mmap = make_mmap(&mut tmpfile, size)?;
         Ok(AsyncWriter(Mutex::new(State::Idle(Some(Inner {
             cache: cache_path,
             builder: IntegrityOpts::new().algorithm(algo),
@@ -426,6 +408,29 @@ impl AsyncWriter {
             }
         }
     }
+}
+
+#[cfg(feature = "mmap")]
+fn make_mmap(tmpfile: &mut NamedTempFile, size: Option<usize>) -> Result<Option<MmapMut>> {
+    if let Some(size @ 0..=MAX_MMAP_SIZE) = size {
+        tmpfile
+            .as_file_mut()
+            .set_len(size as u64)
+            .with_context(|| {
+                format!(
+                    "Failed to configure file length for temp file at {}",
+                    tmpfile.path().display()
+                )
+            })?;
+        Ok(unsafe { MmapMut::map_mut(tmpfile.as_file()).ok() })
+    } else {
+        Ok(None)
+    }
+}
+
+#[cfg(not(feature = "mmap"))]
+fn make_mmap(_: &mut NamedTempFile, _: Option<usize>) -> Result<Option<MmapMut>> {
+    Ok(None)
 }
 
 #[cfg(test)]
