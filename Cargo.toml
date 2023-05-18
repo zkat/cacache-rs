@@ -16,6 +16,7 @@ digest = "0.10.6"
 either = "1.6.1"
 futures = "0.3.17"
 hex = "0.4.3"
+libc = "0.2.144"
 memmap2 = { version = "0.5.8", optional = true }
 miette = "5.7.0"
 reflink = "0.1.3"
