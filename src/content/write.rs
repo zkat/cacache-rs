@@ -413,19 +413,42 @@ impl AsyncWriter {
 #[cfg(feature = "mmap")]
 fn make_mmap(tmpfile: &mut NamedTempFile, size: Option<usize>) -> Result<Option<MmapMut>> {
     if let Some(size @ 0..=MAX_MMAP_SIZE) = size {
-        tmpfile
-            .as_file_mut()
-            .set_len(size as u64)
-            .with_context(|| {
-                format!(
-                    "Failed to configure file length for temp file at {}",
-                    tmpfile.path().display()
-                )
-            })?;
+        allocate_file(tmpfile.as_file(), size).with_context(|| {
+            format!(
+                "Failed to configure file length for temp file at {}",
+                tmpfile.path().display()
+            )
+        })?;
         Ok(unsafe { MmapMut::map_mut(tmpfile.as_file()).ok() })
     } else {
         Ok(None)
     }
+}
+
+#[cfg(feature = "mmap")]
+#[cfg(target_os = "linux")]
+fn allocate_file(file: &std::fs::File, size: usize) -> std::io::Result<()> {
+    use std::io::{Error, ErrorKind};
+    use std::os::fd::AsRawFd;
+
+    let fd = file.as_raw_fd();
+    match unsafe { libc::posix_fallocate64(fd, 0, size as i64) } {
+        0 => Ok(()),
+        libc::ENOSPC => Err(Error::new(
+            ErrorKind::Other, // ErrorKind::StorageFull is unstable
+            "cannot allocate file: no space left on device",
+        )),
+        err => Err(Error::new(
+            ErrorKind::Other,
+            format!("posix_fallocate64 failed with code {err}"),
+        )),
+    }
+}
+
+#[cfg(feature = "mmap")]
+#[cfg(not(target_os = "linux"))]
+fn allocate_file(file: &std::fs::File, size: usize) -> std::io::Result<()> {
+    file.set_len(size as u64)
 }
 
 #[cfg(not(feature = "mmap"))]
