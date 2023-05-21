@@ -1,5 +1,17 @@
 # `cacache` Release Changelog
 
+<a name="11.6.0"></a>
+## 11.6.0 (2023-05-21)
+
+### Features
+
+* **mmap:** new feature for mmap-based optimization (#49) ([58de0b2d](https://github.com/zkat/cacache-rs/commit/58de0b2d1016c964d6f18f042f10e2a744415b08))
+* **xxhash:** Add xxhash support and some utilities for making it easier to use (#51) ([41392e74](https://github.com/zkat/cacache-rs/commit/41392e7469b7e49b5b35aaacf77eb8a877a1484c))
+
+### Bug Fixes
+
+* **mmap:** pre-allocate temp file before mmapping (#50) ([1ac1d647](https://github.com/zkat/cacache-rs/commit/1ac1d647e0e25e1230bca376f9f294336dd57943))
+
 <a name="11.5.2"></a>
 ## 11.5.2 (2023-04-01)
 
