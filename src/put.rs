@@ -31,9 +31,36 @@ where
     D: AsRef<[u8]>,
     K: AsRef<str>,
 {
-    async fn inner(cache: &Path, key: &str, data: &[u8]) -> Result<Integrity> {
+    write_with_algo(Algorithm::Sha256, cache, key, data).await
+}
+
+/// Writes `data` to the `cache`, indexing it under `key`. Use this function
+/// to customize the hashing algorithm.
+///
+/// ## Example
+/// ```no_run
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     cacache::write_with_algo(cacache::Algorithm::Xxh3, "./my-cache", "my-key", b"hello").await?;
+///     Ok(())
+/// }
+/// ```
+pub async fn write_with_algo<P, D, K>(
+    algo: Algorithm,
+    cache: P,
+    key: K,
+    data: D,
+) -> Result<Integrity>
+where
+    P: AsRef<Path>,
+    D: AsRef<[u8]>,
+    K: AsRef<str>,
+{
+    async fn inner(algo: Algorithm, cache: &Path, key: &str, data: &[u8]) -> Result<Integrity> {
         let mut writer = WriteOpts::new()
-            .algorithm(Algorithm::Sha256)
+            .algorithm(algo)
             .size(data.len())
             .open(cache, key)
             .await?;
@@ -42,9 +69,8 @@ where
         })?;
         writer.commit().await
     }
-    inner(cache.as_ref(), key.as_ref(), data.as_ref()).await
+    inner(algo, cache.as_ref(), key.as_ref(), data.as_ref()).await
 }
-
 /// Writes `data` to the `cache`, skipping associating an index key with it.
 ///
 /// ## Example
@@ -62,9 +88,30 @@ where
     P: AsRef<Path>,
     D: AsRef<[u8]>,
 {
-    async fn inner(cache: &Path, data: &[u8]) -> Result<Integrity> {
+    write_hash_with_algo(Algorithm::Sha256, cache, data).await
+}
+
+/// Writes `data` to the `cache`, skipping associating an index key with it.
+/// Use this to customize the hashing algorithm.
+///
+/// ## Example
+/// ```no_run
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     cacache::write_hash_with_algo(cacache::Algorithm::Xxh3, "./my-cache", b"hello").await?;
+///     Ok(())
+/// }
+/// ```
+pub async fn write_hash_with_algo<P, D>(algo: Algorithm, cache: P, data: D) -> Result<Integrity>
+where
+    P: AsRef<Path>,
+    D: AsRef<[u8]>,
+{
+    async fn inner(algo: Algorithm, cache: &Path, data: &[u8]) -> Result<Integrity> {
         let mut writer = WriteOpts::new()
-            .algorithm(Algorithm::Sha256)
+            .algorithm(algo)
             .size(data.len())
             .open_hash(cache)
             .await?;
@@ -74,9 +121,8 @@ where
             .with_context(|| format!("Failed to write to cache data for cache at {cache:?}"))?;
         writer.commit().await
     }
-    inner(cache.as_ref(), data.as_ref()).await
+    inner(algo, cache.as_ref(), data.as_ref()).await
 }
-
 /// A reference to an open file writing to the cache.
 pub struct Writer {
     cache: PathBuf,
@@ -137,13 +183,35 @@ impl Writer {
         P: AsRef<Path>,
         K: AsRef<str>,
     {
-        async fn inner(cache: &Path, key: &str) -> Result<Writer> {
-            WriteOpts::new()
-                .algorithm(Algorithm::Sha256)
-                .open(cache, key)
-                .await
+        Self::create_with_algo(Algorithm::Sha256, cache, key).await
+    }
+
+    /// Creates a new writable file handle into the cache. Use this to
+    /// customize the algorithm used for hashing.
+    ///
+    /// ## Example
+    /// ```no_run
+    /// use async_attributes;
+    /// use async_std::prelude::*;
+    ///
+    /// #[async_attributes::main]
+    /// async fn main() -> cacache::Result<()> {
+    ///     let mut fd = cacache::Writer::create_with_algo(cacache::Algorithm::Xxh3, "./my-cache", "my-key").await?;
+    ///     fd.write_all(b"hello world").await.expect("Failed to write to cache");
+    ///     // Data is not saved into the cache until you commit it.
+    ///     fd.commit().await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn create_with_algo<P, K>(algo: Algorithm, cache: P, key: K) -> Result<Writer>
+    where
+        P: AsRef<Path>,
+        K: AsRef<str>,
+    {
+        async fn inner(algo: Algorithm, cache: &Path, key: &str) -> Result<Writer> {
+            WriteOpts::new().algorithm(algo).open(cache, key).await
         }
-        inner(cache.as_ref(), key.as_ref()).await
+        inner(algo, cache.as_ref(), key.as_ref()).await
     }
 
     /// Closes the Writer handle and writes content and index entries. Also
@@ -190,15 +258,41 @@ where
     D: AsRef<[u8]>,
     K: AsRef<str>,
 {
-    fn inner(cache: &Path, key: &str, data: &[u8]) -> Result<Integrity> {
-        let mut writer = SyncWriter::create(cache, key)?;
+    write_sync_with_algo(Algorithm::Sha256, cache, key, data)
+}
+
+/// Writes `data` to the `cache` synchronously, indexing it under `key`. Use
+/// this to customize the hashing algorithm.
+///
+/// ## Example
+/// ```no_run
+/// use std::io::Read;
+///
+/// fn main() -> cacache::Result<()> {
+///     let data = cacache::write_sync_with_algo(cacache::Algorithm::Xxh3, "./my-cache", "my-key", b"hello")?;
+///     Ok(())
+/// }
+/// ```
+pub fn write_sync_with_algo<P, D, K>(
+    algo: Algorithm,
+    cache: P,
+    key: K,
+    data: D,
+) -> Result<Integrity>
+where
+    P: AsRef<Path>,
+    D: AsRef<[u8]>,
+    K: AsRef<str>,
+{
+    fn inner(algo: Algorithm, cache: &Path, key: &str, data: &[u8]) -> Result<Integrity> {
+        let mut writer = SyncWriter::create_with_algo(algo, cache, key)?;
         writer.write_all(data).with_context(|| {
             format!("Failed to write to cache data for key {key} for cache at {cache:?}")
         })?;
         writer.written = data.as_ref().len();
         writer.commit()
     }
-    inner(cache.as_ref(), key.as_ref(), data.as_ref())
+    inner(algo, cache.as_ref(), key.as_ref(), data.as_ref())
 }
 
 /// Writes `data` to the `cache` synchronously, skipping associating a key with it.
@@ -217,9 +311,28 @@ where
     P: AsRef<Path>,
     D: AsRef<[u8]>,
 {
-    fn inner(cache: &Path, data: &[u8]) -> Result<Integrity> {
+    write_hash_sync_with_algo(Algorithm::Sha256, cache, data)
+}
+
+/// Writes `data` to the `cache` synchronously, skipping associating a key with it.
+///
+/// ## Example
+/// ```no_run
+/// use std::io::Read;
+///
+/// fn main() -> cacache::Result<()> {
+///     let data = cacache::write_hash_sync_with_algo(cacache::Algorithm::Xxh3, "./my-cache", b"hello")?;
+///     Ok(())
+/// }
+/// ```
+pub fn write_hash_sync_with_algo<P, D>(algo: Algorithm, cache: P, data: D) -> Result<Integrity>
+where
+    P: AsRef<Path>,
+    D: AsRef<[u8]>,
+{
+    fn inner(algo: Algorithm, cache: &Path, data: &[u8]) -> Result<Integrity> {
         let mut writer = WriteOpts::new()
-            .algorithm(Algorithm::Sha256)
+            .algorithm(algo)
             .size(data.len())
             .open_hash_sync(cache)?;
         writer
@@ -228,9 +341,8 @@ where
         writer.written = data.len();
         writer.commit()
     }
-    inner(cache.as_ref(), data.as_ref())
+    inner(algo, cache.as_ref(), data.as_ref())
 }
-
 /// Builder for options and flags for opening a new cache file to write data into.
 #[derive(Clone, Default)]
 pub struct WriteOpts {
@@ -426,6 +538,31 @@ impl SyncWriter {
         inner(cache.as_ref(), key.as_ref())
     }
 
+    /// Creates a new writable file handle into the cache. Use this to
+    /// customize the hashing algorithm.
+    ///
+    /// ## Example
+    /// ```no_run
+    /// use std::io::prelude::*;
+    ///
+    /// fn main() -> cacache::Result<()> {
+    ///     let mut fd = cacache::SyncWriter::create_with_algo(cacache::Algorithm::Xxh3, "./my-cache", "my-key")?;
+    ///     fd.write_all(b"hello world").expect("Failed to write to cache");
+    ///     // Data is not saved into the cache until you commit it.
+    ///     fd.commit()?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn create_with_algo<P, K>(algo: Algorithm, cache: P, key: K) -> Result<SyncWriter>
+    where
+        P: AsRef<Path>,
+        K: AsRef<str>,
+    {
+        fn inner(algo: Algorithm, cache: &Path, key: &str) -> Result<SyncWriter> {
+            WriteOpts::new().algorithm(algo).open_sync(cache, key)
+        }
+        inner(algo, cache.as_ref(), key.as_ref())
+    }
     /// Closes the Writer handle and writes content and index entries. Also
     /// verifies data against `size` and `integrity` options, if provided.
     /// Must be called manually in order to complete the writing process,

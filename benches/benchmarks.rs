@@ -104,6 +104,17 @@ fn read_hash_sync(c: &mut Criterion) {
     });
 }
 
+fn read_hash_sync_xxh3(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    let data = b"hello world".to_vec();
+    let sri =
+        cacache::write_sync_with_algo(cacache::Algorithm::Xxh3, &cache, "hello", data).unwrap();
+    c.bench_function("get::data_hash_sync::xxh3", move |b| {
+        b.iter(|| cacache::read_hash_sync(black_box(&cache), black_box(&sri)).unwrap())
+    });
+}
+
 fn read_hash_many_sync(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
@@ -116,6 +127,28 @@ fn read_hash_many_sync(c: &mut Criterion) {
         .map(|datum| cacache::write_sync(&cache, "hello", datum).unwrap())
         .collect();
     c.bench_function("get::data_hash_many_sync", move |b| {
+        b.iter(|| {
+            for sri in sris.iter() {
+                cacache::read_hash_sync(black_box(&cache), black_box(sri)).unwrap();
+            }
+        })
+    });
+}
+
+fn read_hash_many_sync_xxh3(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    let data: Vec<_> = (0..)
+        .take(NUM_REPEATS)
+        .map(|i| format!("test_file_{i}"))
+        .collect();
+    let sris: Vec<_> = data
+        .iter()
+        .map(|datum| {
+            cacache::write_sync_with_algo(cacache::Algorithm::Xxh3, &cache, "hello", datum).unwrap()
+        })
+        .collect();
+    c.bench_function("get::data_hash_many_sync::xxh3", move |b| {
         b.iter(|| {
             for sri in sris.iter() {
                 cacache::read_hash_sync(black_box(&cache), black_box(sri)).unwrap();
@@ -140,6 +173,17 @@ fn read_hash_sync_big_data(c: &mut Criterion) {
     let data = vec![1; 1024 * 1024 * 5];
     let sri = cacache::write_sync(&cache, "hello", data).unwrap();
     c.bench_function("get_hash_big_data", move |b| {
+        b.iter(|| cacache::read_hash_sync(black_box(&cache), black_box(&sri)).unwrap())
+    });
+}
+
+fn read_hash_sync_big_data_xxh3(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    let data = vec![1; 1024 * 1024 * 5];
+    let sri =
+        cacache::write_sync_with_algo(cacache::Algorithm::Xxh3, &cache, "hello", data).unwrap();
+    c.bench_function("get_hash_big_data::xxh3", move |b| {
         b.iter(|| cacache::read_hash_sync(black_box(&cache), black_box(&sri)).unwrap())
     });
 }
@@ -195,6 +239,38 @@ fn read_hash_async_big_data(c: &mut Criterion) {
     });
 }
 
+fn write_hash(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    c.bench_function("put::data::sync", move |b| {
+        b.iter_custom(|iters| {
+            let start = std::time::Instant::now();
+            for i in 0..iters {
+                cacache::write_hash_sync(&cache, format!("hello world{i}")).unwrap();
+            }
+            start.elapsed()
+        })
+    });
+}
+
+fn write_hash_xxh3(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    c.bench_function("put::data::sync::xxh3", move |b| {
+        b.iter_custom(|iters| {
+            let start = std::time::Instant::now();
+            for i in 0..iters {
+                cacache::write_hash_sync_with_algo(
+                    cacache::Algorithm::Xxh3,
+                    &cache,
+                    format!("hello world{i}"),
+                )
+                .unwrap();
+            }
+            start.elapsed()
+        })
+    });
+}
 fn write_hash_async(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
@@ -203,6 +279,25 @@ fn write_hash_async(c: &mut Criterion) {
             let start = std::time::Instant::now();
             for i in 0..iters {
                 block_on(cacache::write_hash(&cache, format!("hello world{i}"))).unwrap();
+            }
+            start.elapsed()
+        })
+    });
+}
+
+fn write_hash_async_xxh3(c: &mut Criterion) {
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = tmp.path().to_owned();
+    c.bench_function("put::data::xxh3", move |b| {
+        b.iter_custom(|iters| {
+            let start = std::time::Instant::now();
+            for i in 0..iters {
+                block_on(cacache::write_hash_with_algo(
+                    cacache::Algorithm::Xxh3,
+                    &cache,
+                    format!("hello world{i}"),
+                ))
+                .unwrap();
             }
             start.elapsed()
         })
@@ -294,12 +389,18 @@ criterion_group!(
     read_hash_async,
     read_hash_many_async,
     read_async,
+    write_hash,
+    write_hash_xxh3,
     write_hash_async,
+    write_hash_async_xxh3,
     read_hash_sync,
+    read_hash_sync_xxh3,
     read_hash_many_sync,
+    read_hash_many_sync_xxh3,
     read_sync,
     read_hash_async_big_data,
-    read_hash_sync_big_data
+    read_hash_sync_big_data,
+    read_hash_sync_big_data_xxh3,
 );
 
 #[cfg(feature = "link_to")]
