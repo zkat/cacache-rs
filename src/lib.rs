@@ -167,7 +167,7 @@ mod put;
 mod rm;
 
 pub use errors::{Error, Result};
-pub use index::Metadata;
+pub use index::{Metadata, RemoveOpts};
 
 pub use get::*;
 #[cfg(feature = "link_to")]
