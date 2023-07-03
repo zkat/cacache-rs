@@ -151,7 +151,7 @@ compile_error!("Either feature \"async-std\" or \"tokio-runtime\" must be enable
 compile_error!("Only either feature \"async-std\" or \"tokio-runtime\" must be enabled for this crate, not both.");
 
 pub use serde_json::Value;
-pub use ssri::Algorithm;
+pub use ssri::{Algorithm, Integrity};
 
 mod async_lib;
 
