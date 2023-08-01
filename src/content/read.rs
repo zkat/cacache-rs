@@ -9,6 +9,7 @@ use futures::io::AsyncReadExt;
 #[cfg(feature = "tokio")]
 use tokio::io::AsyncReadExt;
 
+use reflink_copy as reflink;
 use ssri::{Algorithm, Integrity, IntegrityChecker};
 
 use crate::async_lib::AsyncRead;
