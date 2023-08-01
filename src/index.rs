@@ -325,7 +325,7 @@ fn bucket_entries(bucket: &Path) -> std::io::Result<Vec<SerializableMetadata>> {
         .map(|file| {
             BufReader::new(file)
                 .lines()
-                .filter_map(std::result::Result::ok)
+                .map_while(std::result::Result::ok)
                 .filter_map(|entry| {
                     let entry_str = match entry.split('\t').collect::<Vec<&str>>()[..] {
                         [hash, entry_str] if hash_entry(entry_str) == hash => entry_str,
