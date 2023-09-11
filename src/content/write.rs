@@ -28,6 +28,7 @@ struct MmapMut;
 
 #[cfg(not(feature = "mmap"))]
 impl MmapMut {
+    #[allow(dead_code)]
     fn flush_async(&self) -> std::io::Result<()> {
         panic!()
     }
