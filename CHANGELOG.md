@@ -1,5 +1,14 @@
 # `cacache` Release Changelog
 
+<a name="11.7.1"></a>
+## 11.7.1 (2023-09-11)
+
+### Bug Fixes
+
+* **sync-only:** remove futures dep when no async features are being used ([100609ab](https://github.com/zkat/cacache-rs/commit/100609abee0715a12f1bf5688aa6b462b2b8c713))
+* **mmap:** fix unused method warning ([c735d83a](https://github.com/zkat/cacache-rs/commit/c735d83a316ebe2844803132fa81f6dcb9f28b79))
+* **deps:** moved to reflink-copy (#55) ([6624d66c](https://github.com/zkat/cacache-rs/commit/6624d66c16d2aedf6d8369c71c627ff7d817f72a))
+
 <a name="11.7.0"></a>
 ## 11.7.0 (2023-09-11)
 
