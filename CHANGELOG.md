@@ -1,5 +1,12 @@
 # `cacache` Release Changelog
 
+<a name="11.7.0"></a>
+## 11.7.0 (2023-09-11)
+
+### Features
+
+* **sync-only:** add support for removing async runtime dependency altogether (#56) ([60622267](https://github.com/zkat/cacache-rs/commit/606222678931cd809af35c1a38a58933b5fc6d7e))
+
 <a name="11.6.0"></a>
 ## 11.6.0 (2023-05-21)
 
