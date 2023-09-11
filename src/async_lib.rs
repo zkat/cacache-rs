@@ -121,8 +121,8 @@ pub async fn create_named_tempfile(tmp_path: std::path::PathBuf) -> crate::Resul
 #[inline]
 pub async fn create_named_tempfile(tmp_path: std::path::PathBuf) -> crate::Result<NamedTempFile> {
     let cloned = tmp_path.clone();
-    Ok(spawn_blocking(|| NamedTempFile::new_in(tmp_path))
+    spawn_blocking(|| NamedTempFile::new_in(tmp_path))
         .await
         .unwrap()
-        .with_context(|| format!("Failed to create a temp file at {}", cloned.display()))?)
+        .with_context(|| format!("Failed to create a temp file at {}", cloned.display()))
 }

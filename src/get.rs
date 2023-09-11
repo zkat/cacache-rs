@@ -1,10 +1,13 @@
 //! Functions for reading from cache.
 use std::path::Path;
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::pin::Pin;
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::task::{Context as TaskContext, Poll};
 
 use ssri::{Algorithm, Integrity};
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use crate::async_lib::AsyncRead;
 use crate::content::read;
 use crate::errors::{Error, Result};
@@ -18,10 +21,12 @@ use crate::index::{self, Metadata};
 ///
 /// Make sure to call `.check()` when done reading to verify that the
 /// extracted data passes integrity verification.
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub struct Reader {
     reader: read::AsyncReader,
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl AsyncRead for Reader {
     #[cfg(feature = "async-std")]
     fn poll_read(
@@ -42,6 +47,7 @@ impl AsyncRead for Reader {
     }
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl Reader {
     /// Checks that data read from disk passes integrity checks. Returns the
     /// algorithm that was used verified the data. Should be called only after
@@ -145,6 +151,7 @@ impl Reader {
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn read<P, K>(cache: P, key: K) -> Result<Vec<u8>>
 where
     P: AsRef<Path>,
@@ -175,6 +182,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn read_hash<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>>
 where
     P: AsRef<Path>,
@@ -199,6 +207,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn copy<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64>
 where
     P: AsRef<Path>,
@@ -232,6 +241,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn copy_unchecked<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
 where
     P: AsRef<Path>,
@@ -266,6 +276,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn copy_hash<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64>
 where
     P: AsRef<Path>,
@@ -292,6 +303,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn copy_hash_unchecked<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<()>
 where
     P: AsRef<Path>,
@@ -301,6 +313,7 @@ where
 }
 
 /// Hard links a cache entry by key to a specified location.
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn hard_link<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
 where
     P: AsRef<Path>,
@@ -322,6 +335,7 @@ where
 /// Note that the existence of a metadata entry is not a guarantee that the
 /// underlying data exists, since they are stored and managed independently.
 /// To verify that the underlying associated data exists, use `exists()`.
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn metadata<P, K>(cache: P, key: K) -> Result<Option<Metadata>>
 where
     P: AsRef<Path>,
@@ -331,6 +345,7 @@ where
 }
 
 /// Returns true if the given hash exists in the cache.
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn exists<P: AsRef<Path>>(cache: P, sri: &Integrity) -> bool {
     read::has_content_async(cache.as_ref(), sri).await.is_some()
 }
@@ -669,6 +684,7 @@ pub fn exists_sync<P: AsRef<Path>>(cache: P, sri: &Integrity) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     use crate::async_lib::AsyncReadExt;
     use std::fs;
 
@@ -677,6 +693,7 @@ mod tests {
     #[cfg(feature = "tokio")]
     use tokio::test as async_test;
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_open() {
         let tmp = tempfile::tempdir().unwrap();
@@ -690,6 +707,7 @@ mod tests {
         assert_eq!(str, String::from("hello world"));
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_open_hash() {
         let tmp = tempfile::tempdir().unwrap();
@@ -731,6 +749,7 @@ mod tests {
         assert_eq!(str, String::from("hello world"));
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_read() {
         let tmp = tempfile::tempdir().unwrap();
@@ -741,6 +760,7 @@ mod tests {
         assert_eq!(data, b"hello world");
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_read_hash() {
         let tmp = tempfile::tempdir().unwrap();
@@ -771,6 +791,7 @@ mod tests {
         assert_eq!(data, b"hello world");
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_copy() {
         let tmp = tempfile::tempdir().unwrap();
@@ -783,6 +804,7 @@ mod tests {
         assert_eq!(data, b"hello world");
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_copy_hash() {
         let tmp = tempfile::tempdir().unwrap();

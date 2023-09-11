@@ -38,7 +38,11 @@ Minimum supported Rust version is `1.43.0`.
 
 ## Features
 
-- First-class async support, using either [`async-std`](https://crates.io/crates/async-std) or [`tokio`](https://crates.io/crates/tokio) as its runtime. Sync APIs are available but secondary
+- First-class async support, using either
+  [`async-std`](https://crates.io/crates/async-std) or
+  [`tokio`](https://crates.io/crates/tokio) as its runtime. Sync APIs are
+  available but secondary. You can also use sync APIs only and remove the
+  async runtime dependency.
 - `std::fs`-style API
 - Extraction by key or by content address (shasum, etc)
 - [Subresource Integrity](#integrity) web standard support
@@ -56,11 +60,20 @@ Minimum supported Rust version is `1.43.0`.
 - [`miette`](https://crates.io/crates/miette) integration for detailed, helpful error reporting.
 - Punches nazis
 
-`async-std` is the default async runtime. To use `tokio` instead, turn off default features and enable the `tokio-runtime` feature, like this:
+`async-std` is the default async runtime. To use `tokio` instead, turn off
+default features and enable the `tokio-runtime` feature, like this:
 
 ```toml
 [dependencies]
-cacache = { version = "*", default-features = false, features = ["tokio-runtime"] }
+cacache = { version = "*", default-features = false, features = ["tokio-runtime", "mmap"] }
+```
+
+You can also remove async APIs altogether, including removing async runtime
+dependency:
+
+```toml
+[dependencies]
+cacache = { version = "*", default-features = false, features = ["mmap"] }
 ```
 
 Experimental support for symlinking to existing files is provided via the
@@ -68,9 +81,16 @@ Experimental support for symlinking to existing files is provided via the
 
 ## Contributing
 
-The cacache team enthusiastically welcomes contributions and project participation! There's a bunch of things you can do if you want to contribute! The [Contributor Guide](CONTRIBUTING.md) has all the information you need for everything from reporting bugs to contributing entire new features. Please don't hesitate to jump in if you'd like to, or even ask us questions if something isn't clear.
+The cacache team enthusiastically welcomes contributions and project
+participation! There's a bunch of things you can do if you want to contribute!
+The [Contributor Guide](CONTRIBUTING.md) has all the information you need for
+everything from reporting bugs to contributing entire new features. Please
+don't hesitate to jump in if you'd like to, or even ask us questions if
+something isn't clear.
 
-All participants and maintainers in this project are expected to follow [Code of Conduct](CODE_OF_CONDUCT.md), and just generally be excellent to each other.
+All participants and maintainers in this project are expected to follow [Code
+of Conduct](CODE_OF_CONDUCT.md), and just generally be excellent to each
+other.
 
 Happy hacking!
 

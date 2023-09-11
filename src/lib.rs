@@ -113,6 +113,15 @@
 //! once. If you're only reading and writing one thing at a time across your
 //! application, you probably want to use these instead.
 //!
+//! If you wish to _only_ use sync APIs and not pull in an async runtime, you
+//! can disable default features:
+//!
+//! ```toml
+//! # Cargo.toml
+//! [dependencies]
+//! cacache = { version = "X.Y.Z", default-features = false, features = ["mmap"] }
+//! ```
+//!
 //! ```no_run
 //! fn main() -> cacache::Result<()> {
 //!   cacache::write_sync("./my-cache", "key", b"my-data").unwrap();
@@ -124,10 +133,10 @@
 //!
 //! ### Linking to existing files
 //!
-//! The `link_to` feature enables an additional set of APIs for adding existing
-//! files into the cache via symlinks, without having to duplicate their data.
-//! Once the cache links to them, these files can be accessed by key just like
-//! other cached data, with the same integrity checking.
+//! The `link_to` feature enables an additional set of APIs for adding
+//! existing files into the cache via symlinks, without having to duplicate
+//! their data. Once the cache links to them, these files can be accessed by
+//! key just like other cached data, with the same integrity checking.
 //!
 //! The `link_to` methods are available in both async and sync variants, using
 //! the same suffixes as the other APIs.
@@ -144,15 +153,13 @@
 //! ```
 #![warn(missing_docs)]
 
-#[cfg(not(any(feature = "async-std", feature = "tokio-runtime")))]
-compile_error!("Either feature \"async-std\" or \"tokio-runtime\" must be enabled for this crate.");
-
 #[cfg(all(feature = "async-std", feature = "tokio-runtime"))]
 compile_error!("Only either feature \"async-std\" or \"tokio-runtime\" must be enabled for this crate, not both.");
 
 pub use serde_json::Value;
 pub use ssri::{Algorithm, Integrity};
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 mod async_lib;
 
 mod content;

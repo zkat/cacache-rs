@@ -16,6 +16,7 @@ pub fn rm(cache: &Path, sri: &Integrity) -> Result<()> {
     Ok(())
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn rm_async(cache: &Path, sri: &Integrity) -> Result<()> {
     crate::async_lib::remove_file(path::content_path(cache, sri))
         .await

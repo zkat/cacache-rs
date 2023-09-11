@@ -1,3 +1,4 @@
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use crate::async_lib::AsyncRead;
 use crate::content::linkto;
 use crate::errors::{Error, IoErrorExt, Result};
@@ -5,7 +6,9 @@ use crate::{index, WriteOpts};
 use ssri::{Algorithm, Integrity};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::pin::Pin;
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::task::{Context as TaskContext, Poll};
 
 #[cfg(feature = "async-std")]
@@ -30,6 +33,7 @@ const PROBE_SIZE: usize = 8;
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn link_to<P, K, T>(cache: P, key: K, target: T) -> Result<Integrity>
 where
     P: AsRef<Path>,
@@ -53,6 +57,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn link_to_hash<P, T>(cache: P, target: T) -> Result<Integrity>
 where
     P: AsRef<Path>,
@@ -108,6 +113,7 @@ where
 /// `SyncToLinker` instances.
 impl WriteOpts {
     /// Opens the target file handle for reading, returning a ToLinker instance.
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     pub async fn link_to<P, K, T>(self, cache: P, key: K, target: T) -> Result<ToLinker>
     where
         P: AsRef<Path>,
@@ -138,6 +144,7 @@ impl WriteOpts {
 
     /// Opens the target file handle for reading, without a key, returning a
     /// ToLinker instance.
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     pub async fn link_to_hash<P, T>(self, cache: P, target: T) -> Result<ToLinker>
     where
         P: AsRef<Path>,
@@ -213,6 +220,7 @@ impl WriteOpts {
 ///
 /// Make sure to call `.commit()` when done reading to actually add the file to
 /// the cache.
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub struct ToLinker {
     cache: PathBuf,
     key: Option<String>,
@@ -221,6 +229,7 @@ pub struct ToLinker {
     opts: WriteOpts,
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl AsyncRead for ToLinker {
     #[cfg(feature = "async-std")]
     fn poll_read(
@@ -253,6 +262,7 @@ fn filesize(target: &Path) -> Result<usize> {
         .len() as usize)
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl ToLinker {
     /// Creates a new asynchronous readable file handle into the cache.
     pub async fn open<P, K, T>(cache: P, key: K, target: T) -> Result<Self>
@@ -499,6 +509,7 @@ mod tests {
         target
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_link() {
         let tmp = tempfile::tempdir().unwrap();
@@ -512,6 +523,7 @@ mod tests {
         assert_eq!(buf, b"hello world");
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_link_to_hash() {
         let tmp = tempfile::tempdir().unwrap();
@@ -551,6 +563,7 @@ mod tests {
         assert_eq!(buf, b"hello world");
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_open() {
         let tmp = tempfile::tempdir().unwrap();
@@ -569,6 +582,7 @@ mod tests {
         assert_eq!(buf, b"hello world");
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_open_hash() {
         let tmp = tempfile::tempdir().unwrap();

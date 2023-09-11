@@ -1,16 +1,21 @@
 use std::fs::DirBuilder;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::pin::Pin;
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::sync::Mutex;
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::task::{Context, Poll};
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use futures::prelude::*;
 #[cfg(feature = "mmap")]
 use memmap2::MmapMut;
 use ssri::{Algorithm, Integrity, IntegrityOpts};
 use tempfile::NamedTempFile;
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use crate::async_lib::{AsyncWrite, JoinHandle};
 use crate::content::path;
 use crate::errors::{IoErrorExt, Result};
@@ -122,13 +127,16 @@ impl Write for Writer {
     }
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub struct AsyncWriter(Mutex<State>);
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 enum State {
     Idle(Option<Inner>),
     Busy(JoinHandle<State>),
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 struct Inner {
     cache: PathBuf,
     builder: IntegrityOpts,
@@ -138,11 +146,13 @@ struct Inner {
     last_op: Option<Operation>,
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 enum Operation {
     Write(std::io::Result<usize>),
     Flush(std::io::Result<()>),
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl AsyncWriter {
     #[allow(clippy::new_ret_no_self)]
     #[allow(clippy::needless_lifetimes)]
@@ -252,6 +262,7 @@ impl AsyncWriter {
     }
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl AsyncWrite for AsyncWriter {
     fn poll_write(
         self: Pin<&mut Self>,
@@ -374,6 +385,7 @@ impl AsyncWrite for AsyncWriter {
     }
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl AsyncWriter {
     #[inline]
     fn poll_close_impl(
@@ -459,6 +471,7 @@ fn make_mmap(_: &mut NamedTempFile, _: Option<usize>) -> Result<Option<MmapMut>>
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     use crate::async_lib::AsyncWriteExt;
     use tempfile;
 
@@ -481,6 +494,7 @@ mod tests {
         );
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn basic_async_write() {
         let tmp = tempfile::tempdir().unwrap();

@@ -62,6 +62,7 @@ fn baseline_read_many_sync(c: &mut Criterion) {
     });
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 fn baseline_read_async(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("test_file");
@@ -74,6 +75,7 @@ fn baseline_read_async(c: &mut Criterion) {
     });
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 fn baseline_read_many_async(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let paths: Vec<_> = (0..)
@@ -188,6 +190,7 @@ fn read_hash_sync_big_data_xxh3(c: &mut Criterion) {
     });
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 fn read_hash_many_async(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
@@ -209,6 +212,7 @@ fn read_hash_many_async(c: &mut Criterion) {
     });
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 fn read_hash_async(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
@@ -219,6 +223,7 @@ fn read_hash_async(c: &mut Criterion) {
     });
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 fn read_async(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
@@ -229,6 +234,7 @@ fn read_async(c: &mut Criterion) {
     });
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 fn read_hash_async_big_data(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
@@ -271,6 +277,8 @@ fn write_hash_xxh3(c: &mut Criterion) {
         })
     });
 }
+
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 fn write_hash_async(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
@@ -285,6 +293,7 @@ fn write_hash_async(c: &mut Criterion) {
     });
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 fn write_hash_async_xxh3(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let cache = tmp.path().to_owned();
@@ -316,6 +325,7 @@ fn create_tmpfile(tmp: &tempfile::TempDir, buf: &[u8]) -> PathBuf {
 }
 
 #[cfg(feature = "link_to")]
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 fn link_to_async(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let target = create_tmpfile(&tmp, b"hello world");
@@ -338,7 +348,7 @@ fn link_to_async(c: &mut Criterion) {
     });
 }
 
-#[cfg(feature = "link_to")]
+#[cfg(all(feature = "link_to", any(feature = "async-std", feature = "tokio")))]
 fn link_to_hash_async(c: &mut Criterion) {
     let tmp = tempfile::tempdir().unwrap();
     let target = create_tmpfile(&tmp, b"hello world");
@@ -384,35 +394,55 @@ criterion_group!(
     benches,
     baseline_read_sync,
     baseline_read_many_sync,
-    baseline_read_async,
-    baseline_read_many_async,
-    read_hash_async,
-    read_hash_many_async,
-    read_async,
     write_hash,
     write_hash_xxh3,
-    write_hash_async,
-    write_hash_async_xxh3,
     read_hash_sync,
     read_hash_sync_xxh3,
     read_hash_many_sync,
     read_hash_many_sync_xxh3,
     read_sync,
-    read_hash_async_big_data,
     read_hash_sync_big_data,
     read_hash_sync_big_data_xxh3,
 );
 
-#[cfg(feature = "link_to")]
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 criterion_group!(
-    link_to_benches,
-    link_to_async,
-    link_to_hash_async,
-    link_to_sync,
-    link_to_hash_sync
+    benches_async,
+    baseline_read_async,
+    baseline_read_many_async,
+    read_hash_async,
+    read_hash_many_async,
+    read_async,
+    write_hash_async,
+    write_hash_async_xxh3,
+    read_hash_async_big_data,
 );
 
+#[cfg(all(feature = "link_to", any(feature = "async-std", feature = "tokio")))]
+criterion_group!(link_to_benches_async, link_to_async, link_to_hash_async,);
+
 #[cfg(feature = "link_to")]
+criterion_group!(link_to_benches, link_to_sync, link_to_hash_sync);
+
+#[cfg(all(
+    feature = "link_to",
+    not(any(feature = "async-std", feature = "tokio"))
+))]
 criterion_main!(benches, link_to_benches);
-#[cfg(not(feature = "link_to"))]
+#[cfg(all(
+    not(feature = "link_to"),
+    any(feature = "async-std", feature = "tokio")
+))]
+criterion_main!(benches, benches_async);
+#[cfg(all(feature = "link_to", any(feature = "async-std", feature = "tokio")))]
+criterion_main!(
+    benches,
+    benches_async,
+    link_to_benches,
+    link_to_benches_async
+);
+#[cfg(all(
+    not(feature = "link_to"),
+    not(any(feature = "async-std", feature = "tokio"))
+))]
 criterion_main!(benches);
