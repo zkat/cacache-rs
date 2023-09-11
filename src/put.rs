@@ -1,16 +1,19 @@
 //! Functions for writing to cache.
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::pin::Pin;
 
 use serde_json::Value;
 use ssri::{Algorithm, Integrity};
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use crate::async_lib::{AsyncWrite, AsyncWriteExt};
 use crate::content::write;
 use crate::errors::{Error, IoErrorExt, Result};
 use crate::index;
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::task::{Context as TaskContext, Poll};
 
 /// Writes `data` to the `cache`, indexing it under `key`.
@@ -25,6 +28,7 @@ use std::task::{Context as TaskContext, Poll};
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn write<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity>
 where
     P: AsRef<Path>,
@@ -47,6 +51,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn write_with_algo<P, D, K>(
     algo: Algorithm,
     cache: P,
@@ -71,6 +76,7 @@ where
     }
     inner(algo, cache.as_ref(), key.as_ref(), data.as_ref()).await
 }
+
 /// Writes `data` to the `cache`, skipping associating an index key with it.
 ///
 /// ## Example
@@ -83,6 +89,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn write_hash<P, D>(cache: P, data: D) -> Result<Integrity>
 where
     P: AsRef<Path>,
@@ -104,6 +111,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn write_hash_with_algo<P, D>(algo: Algorithm, cache: P, data: D) -> Result<Integrity>
 where
     P: AsRef<Path>,
@@ -124,6 +132,7 @@ where
     inner(algo, cache.as_ref(), data.as_ref()).await
 }
 /// A reference to an open file writing to the cache.
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub struct Writer {
     cache: PathBuf,
     key: Option<String>,
@@ -132,6 +141,7 @@ pub struct Writer {
     opts: WriteOpts,
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl AsyncWrite for Writer {
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -161,6 +171,7 @@ impl AsyncWrite for Writer {
     }
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl Writer {
     /// Creates a new writable file handle into the cache.
     ///
@@ -361,6 +372,7 @@ impl WriteOpts {
     }
 
     /// Opens the file handle for writing, returning an Writer instance.
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     pub async fn open<P, K>(self, cache: P, key: K) -> Result<Writer>
     where
         P: AsRef<Path>,
@@ -384,6 +396,7 @@ impl WriteOpts {
     }
 
     /// Opens the file handle for writing, without a key returning an Writer instance.
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     pub async fn open_hash<P>(self, cache: P) -> Result<Writer>
     where
         P: AsRef<Path>,
@@ -597,6 +610,7 @@ mod tests {
     #[cfg(feature = "tokio")]
     use tokio::test as async_test;
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn round_trip() {
         let tmp = tempfile::tempdir().unwrap();
@@ -629,6 +643,7 @@ mod tests {
         assert_eq!(result, original, "we did not read back what we wrote");
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn hash_write_async() {
         let tmp = tempfile::tempdir().unwrap();

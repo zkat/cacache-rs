@@ -31,6 +31,7 @@ use crate::index;
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn remove<P, K>(cache: P, key: K) -> Result<()>
 where
     P: AsRef<Path>,
@@ -63,6 +64,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
     rm::rm_async(cache.as_ref(), sri).await
 }
@@ -89,6 +91,7 @@ pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn clear<P: AsRef<Path>>(cache: P) -> Result<()> {
     async fn inner(cache: &Path) -> Result<()> {
         for entry in cache
@@ -213,6 +216,7 @@ mod tests {
     #[cfg(feature = "tokio")]
     use tokio::test as async_test;
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_remove() {
         futures::executor::block_on(async {
@@ -230,6 +234,7 @@ mod tests {
         });
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_remove_data() {
         futures::executor::block_on(async {
@@ -247,6 +252,7 @@ mod tests {
         });
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn test_clear() {
         futures::executor::block_on(async {

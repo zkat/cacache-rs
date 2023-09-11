@@ -1,7 +1,9 @@
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::Path;
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::pin::Pin;
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::task::{Context, Poll};
 
 #[cfg(feature = "async-std")]
@@ -11,6 +13,7 @@ use tokio::io::AsyncReadExt;
 
 use ssri::{Algorithm, Integrity, IntegrityChecker};
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use crate::async_lib::AsyncRead;
 use crate::content::path;
 use crate::errors::{IoErrorExt, Result};
@@ -34,11 +37,13 @@ impl Reader {
     }
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub struct AsyncReader {
     fd: crate::async_lib::File,
     checker: IntegrityChecker,
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl AsyncRead for AsyncReader {
     #[cfg(feature = "async-std")]
     fn poll_read(
@@ -68,6 +73,7 @@ impl AsyncRead for AsyncReader {
     }
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl AsyncReader {
     pub fn check(self) -> Result<Algorithm> {
         Ok(self.checker.result()?)
@@ -87,6 +93,7 @@ pub fn open(cache: &Path, sri: Integrity) -> Result<Reader> {
     })
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn open_async(cache: &Path, sri: Integrity) -> Result<AsyncReader> {
     let cpath = path::content_path(cache, &sri);
     Ok(AsyncReader {
@@ -112,6 +119,7 @@ pub fn read(cache: &Path, sri: &Integrity) -> Result<Vec<u8>> {
     Ok(ret)
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn read_async<'a>(cache: &'a Path, sri: &'a Integrity) -> Result<Vec<u8>> {
     let cpath = path::content_path(cache, sri);
     let ret = crate::async_lib::read(&cpath).await.with_context(|| {
@@ -158,6 +166,7 @@ pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64> {
     Ok(size as u64)
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn copy_unchecked_async<'a>(
     cache: &'a Path,
     sri: &'a Integrity,
@@ -176,6 +185,7 @@ pub async fn copy_unchecked_async<'a>(
     Ok(())
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn copy_async<'a>(cache: &'a Path, sri: &'a Integrity, to: &'a Path) -> Result<u64> {
     copy_unchecked_async(cache, sri, to).await?;
     let mut reader = open_async(cache, sri.clone()).await?;
@@ -230,6 +240,7 @@ pub fn hard_link(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn hard_link_async(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
     hard_link_unchecked(cache, sri, to)?;
     let mut reader = open_async(cache, sri.clone()).await?;
@@ -259,6 +270,7 @@ pub fn has_content(cache: &Path, sri: &Integrity) -> Option<Integrity> {
     }
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn has_content_async(cache: &Path, sri: &Integrity) -> Option<Integrity> {
     if crate::async_lib::metadata(path::content_path(cache, sri))
         .await

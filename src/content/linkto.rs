@@ -2,9 +2,12 @@ use ssri::{Algorithm, Integrity, IntegrityOpts};
 use std::fs::DirBuilder;
 use std::fs::File;
 use std::path::{Path, PathBuf};
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::pin::Pin;
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::task::{Context, Poll};
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use crate::async_lib::AsyncRead;
 use crate::content::path;
 use crate::errors::{IoErrorExt, Result};
@@ -103,6 +106,7 @@ impl std::io::Read for ToLinker {
 /// An `AsyncRead`-like type that calculates the integrity of a file as it is
 /// read. When the linker is committed, a symlink is created from the cache to
 /// the target file using the integrity computed from the file's contents.
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub struct AsyncToLinker {
     /// The path to the target file that will be symlinked from the cache.
     target: PathBuf,
@@ -114,6 +118,7 @@ pub struct AsyncToLinker {
     builder: IntegrityOpts,
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl AsyncRead for AsyncToLinker {
     #[cfg(feature = "async-std")]
     fn poll_read(
@@ -143,6 +148,7 @@ impl AsyncRead for AsyncToLinker {
     }
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 impl AsyncToLinker {
     pub async fn new(cache: &Path, algo: Algorithm, target: &Path) -> Result<Self> {
         let file = crate::async_lib::File::open(target)
@@ -216,6 +222,7 @@ mod tests {
         assert_eq!(std::fs::read(cpath).unwrap(), b"hello world");
     }
 
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
     async fn basic_async_link() {
         let tmp = tempfile::tempdir().unwrap();
