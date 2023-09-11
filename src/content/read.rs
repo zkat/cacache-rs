@@ -11,6 +11,7 @@ use futures::io::AsyncReadExt;
 #[cfg(feature = "tokio")]
 use tokio::io::AsyncReadExt;
 
+use reflink_copy as reflink;
 use ssri::{Algorithm, Integrity, IntegrityChecker};
 
 #[cfg(any(feature = "async-std", feature = "tokio"))]
