@@ -14,7 +14,7 @@ categories = ["caching", "filesystem"]
 async-std = { version = "1.10.0", features = ["unstable"], optional = true }
 digest = "0.10.6"
 either = "1.6.1"
-futures = "0.3.17"
+futures = { version = "0.3.17", optional = true }
 hex = "0.4.3"
 memmap2 = { version = "0.5.8", optional = true }
 miette = "5.7.0"
@@ -58,5 +58,6 @@ harness = false
 [features]
 default = ["async-std", "mmap"]
 mmap = ["memmap2", "libc"]
+async-std = ["dep:async-std", "futures"]
 link_to = []
-tokio-runtime = ["tokio", "tokio-stream"]
+tokio-runtime = ["tokio", "tokio-stream", "futures"]
