@@ -379,6 +379,57 @@ async fn bucket_entries_async(bucket: &Path) -> std::io::Result<Vec<Serializable
     Ok(vec)
 }
 
+/// Builder for options and flags for remove cache entry.
+#[derive(Clone, Default)]
+pub struct RemoveOpts {
+    pub(crate) remove_fully: bool,
+}
+
+impl RemoveOpts {
+    /// Creates cache remove options.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Set the remove fully option
+    /// If remove_fully is set to true then the index file itself will be physically deleted rather than appending a null.
+    pub fn remove_fully(mut self, remove_fully: bool) -> Self {
+        self.remove_fully = remove_fully;
+        self
+    }
+
+    /// Removes an individual index metadata entry. The associated content will be left in the cache.
+    pub fn remove_sync<P, K>(self, cache: P, key: K) -> Result<()>
+    where
+        P: AsRef<Path>,
+        K: AsRef<str>,
+    {
+        if !self.remove_fully {
+            delete(cache.as_ref(), key.as_ref())
+        } else {
+            let bucket = bucket_path(cache.as_ref(), key.as_ref());
+            fs::remove_file(&bucket)
+                .with_context(|| format!("Failed to remove bucket at {bucket:?}"))
+        }
+    }
+
+    /// Removes an individual index metadata entry. The associated content will be left in the cache.
+    pub async fn remove<P, K>(self, cache: P, key: K) -> Result<()>
+    where
+        P: AsRef<Path>,
+        K: AsRef<str>,
+    {
+        if !self.remove_fully {
+            delete_async(cache.as_ref(), key.as_ref()).await
+        } else {
+            let bucket = bucket_path(cache.as_ref(), key.as_ref());
+            crate::async_lib::remove_file(&bucket)
+                .await
+                .with_context(|| format!("Failed to remove bucket at {bucket:?}"))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
