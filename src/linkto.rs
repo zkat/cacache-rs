@@ -502,8 +502,8 @@ mod tests {
     fn create_tmpfile(tmp: &tempfile::TempDir, buf: &[u8]) -> PathBuf {
         let dir = tmp.path().to_owned();
         let target = dir.join("target-file");
-        std::fs::create_dir_all(target.parent().unwrap().clone()).unwrap();
-        let mut file = File::create(target.clone()).unwrap();
+        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+        let mut file = File::create(&target).unwrap();
         file.write_all(buf).unwrap();
         file.flush().unwrap();
         target

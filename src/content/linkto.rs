@@ -44,7 +44,7 @@ fn create_symlink(sri: Integrity, cache: &PathBuf, target: &PathBuf) -> Result<I
                 cpath.parent().unwrap().display()
             )
         })?;
-    if let Err(e) = symlink_file(target, cpath.clone()) {
+    if let Err(e) = symlink_file(target, &cpath) {
         // If symlinking fails because there's *already* a file at the desired
         // destination, that is ok -- all the cache should care about is that
         // there is **some** valid file associated with the computed integrity.
@@ -187,8 +187,8 @@ mod tests {
     fn create_tmpfile(tmp: &tempfile::TempDir, buf: &[u8]) -> PathBuf {
         let dir = tmp.path().to_owned();
         let target = dir.join("target-file");
-        std::fs::create_dir_all(target.parent().unwrap().clone()).unwrap();
-        let mut file = File::create(target.clone()).unwrap();
+        std::fs::create_dir_all(&target.parent().unwrap()).unwrap();
+        let mut file = File::create(&target).unwrap();
         file.write_all(buf).unwrap();
         file.flush().unwrap();
         target
@@ -216,7 +216,7 @@ mod tests {
 
         let cpath = path::content_path(&dir, &sri);
         assert!(cpath.exists());
-        let metadata = std::fs::symlink_metadata(cpath.clone()).unwrap();
+        let metadata = std::fs::symlink_metadata(&cpath).unwrap();
         let file_type = metadata.file_type();
         assert!(file_type.is_symlink());
         assert_eq!(std::fs::read(cpath).unwrap(), b"hello world");
@@ -249,7 +249,7 @@ mod tests {
 
         let cpath = path::content_path(&dir, &sri);
         assert!(cpath.exists());
-        let metadata = std::fs::symlink_metadata(cpath.clone()).unwrap();
+        let metadata = std::fs::symlink_metadata(&cpath).unwrap();
         let file_type = metadata.file_type();
         assert!(file_type.is_symlink());
         assert_eq!(std::fs::read(cpath).unwrap(), b"hello world");
