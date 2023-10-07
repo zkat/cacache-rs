@@ -11,7 +11,6 @@ use futures::io::AsyncReadExt;
 #[cfg(feature = "tokio")]
 use tokio::io::AsyncReadExt;
 
-use reflink_copy as reflink;
 use ssri::{Algorithm, Integrity, IntegrityChecker};
 
 #[cfg(any(feature = "async-std", feature = "tokio"))]
@@ -133,11 +132,11 @@ pub async fn read_async<'a>(cache: &'a Path, sri: &'a Integrity) -> Result<Vec<u
     Ok(ret)
 }
 
-pub fn copy_unchecked(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
+pub fn reflink_unchecked(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
     let cpath = path::content_path(cache, sri);
-    reflink::reflink_or_copy(cpath, to).with_context(|| {
+    reflink_copy::reflink(cpath, to).with_context(|| {
         format!(
-            "Failed to copy cache contents from {} to {}",
+            "Failed to reflink cache contents from {} to {}",
             path::content_path(cache, sri).display(),
             to.display()
         )
@@ -145,8 +144,56 @@ pub fn copy_unchecked(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
     Ok(())
 }
 
+pub fn reflink(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
+    let mut reader = open(cache, sri.clone())?;
+    let mut buf: [u8; 1024] = [0; 1024];
+    loop {
+        let read = reader.read(&mut buf).with_context(|| {
+            format!(
+                "Failed to read cache contents while verifying integrity for {}",
+                path::content_path(cache, sri).display()
+            )
+        })?;
+        if read == 0 {
+            break;
+        }
+    }
+    reader.check()?;
+    reflink_unchecked(cache, sri, to)
+}
+
+pub async fn reflink_async(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
+    let mut reader = open_async(cache, sri.clone()).await?;
+    let mut buf = [0u8; 1024 * 8];
+    loop {
+        let read = AsyncReadExt::read(&mut reader, &mut buf)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to read cache contents while verifying integrity for {}",
+                    path::content_path(cache, sri).display()
+                )
+            })?;
+        if read == 0 {
+            break;
+        }
+    }
+    reader.check()?;
+    reflink_unchecked(cache, sri, to)
+}
+
+pub fn copy_unchecked(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64> {
+    let cpath = path::content_path(cache, sri);
+    std::fs::copy(cpath, to).with_context(|| {
+        format!(
+            "Failed to copy cache contents from {} to {}",
+            path::content_path(cache, sri).display(),
+            to.display()
+        )
+    })
+}
+
 pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64> {
-    copy_unchecked(cache, sri, to)?;
     let mut reader = open(cache, sri.clone())?;
     let mut buf: [u8; 1024] = [0; 1024];
     let mut size = 0;
@@ -163,6 +210,7 @@ pub fn copy(cache: &Path, sri: &Integrity, to: &Path) -> Result<u64> {
         }
     }
     reader.check()?;
+    copy_unchecked(cache, sri, to)?;
 
     Ok(size as u64)
 }
@@ -172,23 +220,19 @@ pub async fn copy_unchecked_async<'a>(
     cache: &'a Path,
     sri: &'a Integrity,
     to: &'a Path,
-) -> Result<()> {
+) -> Result<u64> {
     let cpath = path::content_path(cache, sri);
-    if reflink::reflink(&cpath, to).is_err() {
-        crate::async_lib::copy(&cpath, to).await.with_context(|| {
-            format!(
-                "Failed to copy cache contents from {} to {}",
-                path::content_path(cache, sri).display(),
-                to.display()
-            )
-        })?;
-    }
-    Ok(())
+    crate::async_lib::copy(&cpath, to).await.with_context(|| {
+        format!(
+            "Failed to copy cache contents from {} to {}",
+            path::content_path(cache, sri).display(),
+            to.display()
+        )
+    })
 }
 
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn copy_async<'a>(cache: &'a Path, sri: &'a Integrity, to: &'a Path) -> Result<u64> {
-    copy_unchecked_async(cache, sri, to).await?;
     let mut reader = open_async(cache, sri.clone()).await?;
     let mut buf: [u8; 1024] = [0; 1024];
     let mut size = 0;
@@ -207,6 +251,7 @@ pub async fn copy_async<'a>(cache: &'a Path, sri: &'a Integrity, to: &'a Path) -
         }
     }
     reader.check()?;
+    copy_unchecked_async(cache, sri, to).await?;
     Ok(size as u64)
 }
 
@@ -243,7 +288,6 @@ pub fn hard_link(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
 
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn hard_link_async(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
-    hard_link_unchecked(cache, sri, to)?;
     let mut reader = open_async(cache, sri.clone()).await?;
     let mut buf = [0u8; 1024 * 8];
     loop {
@@ -260,6 +304,7 @@ pub async fn hard_link_async(cache: &Path, sri: &Integrity, to: &Path) -> Result
         }
     }
     reader.check()?;
+    hard_link_unchecked(cache, sri, to)?;
     Ok(())
 }
 

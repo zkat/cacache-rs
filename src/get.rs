@@ -193,9 +193,6 @@ where
 /// Copies cache data to a specified location. Returns the number of bytes
 /// copied.
 ///
-/// On platforms that support it, this will create a copy-on-write "reflink"
-/// with a full-copy fallback.
-///
 /// ## Example
 /// ```no_run
 /// use async_std::prelude::*;
@@ -227,9 +224,6 @@ where
 /// Copies cache data to a specified location. Cache data will not be checked
 /// during copy.
 ///
-/// On platforms that support it, this will create a copy-on-write "reflink"
-/// with a full-copy fallback.
-///
 /// ## Example
 /// ```no_run
 /// use async_std::prelude::*;
@@ -242,13 +236,13 @@ where
 /// }
 /// ```
 #[cfg(any(feature = "async-std", feature = "tokio"))]
-pub async fn copy_unchecked<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
+pub async fn copy_unchecked<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
     Q: AsRef<Path>,
 {
-    async fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
+    async fn inner(cache: &Path, key: &str, to: &Path) -> Result<u64> {
         if let Some(entry) = index::find_async(cache, key).await? {
             copy_hash_unchecked(cache, &entry.integrity, to).await
         } else {
@@ -260,9 +254,6 @@ where
 
 /// Copies a cache data by hash to a specified location. Returns the number of
 /// bytes copied.
-///
-/// On platforms that support it, this will create a copy-on-write "reflink"
-/// with a full-copy fallback.
 ///
 /// ## Example
 /// ```no_run
@@ -288,9 +279,6 @@ where
 /// Copies a cache data by hash to a specified location. Copied data will not
 /// be checked against the given hash.
 ///
-/// On platforms that support it, this will create a copy-on-write "reflink"
-/// with a full-copy fallback.
-///
 /// ## Example
 /// ```no_run
 /// use async_std::prelude::*;
@@ -304,12 +292,111 @@ where
 /// }
 /// ```
 #[cfg(any(feature = "async-std", feature = "tokio"))]
-pub async fn copy_hash_unchecked<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<()>
+pub async fn copy_hash_unchecked<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64>
 where
     P: AsRef<Path>,
     Q: AsRef<Path>,
 {
     read::copy_unchecked_async(cache.as_ref(), sri, to.as_ref()).await
+}
+
+/// Creates a reflink/clonefile from a cache entry to a destination path.
+///
+/// Fails if the destination is on a different filesystem or if the filesystem
+/// does not support reflinks.
+///
+/// Currently, reflinks are known to work on APFS (macOS), XFS, btrfs, and
+/// ReFS (Windows DevDrive)
+///
+/// ## Example
+/// ```no_run
+/// use async_std::prelude::*;
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     cacache::reflink("./my-cache", "my-key", "./data.txt").await?;
+///     Ok(())
+/// }
+/// ```
+pub async fn reflink<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+    Q: AsRef<Path>,
+{
+    async fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
+        if let Some(entry) = index::find_async(cache, key).await? {
+            reflink_hash(cache, &entry.integrity, to).await
+        } else {
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
+        }
+    }
+    inner(cache.as_ref(), key.as_ref(), to.as_ref()).await
+}
+
+/// Reflinks/clonefiles cache data to a specified location. Cache data will
+/// not be checked during linking.
+///
+/// Fails if the destination is on a different filesystem or if the filesystem
+/// does not support reflinks.
+///
+/// Currently, reflinks are known to work on APFS (macOS), XFS, btrfs, and
+/// ReFS (Windows DevDrive)
+///
+/// ## Example
+/// ```no_run
+/// use async_std::prelude::*;
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     cacache::reflink_unchecked("./my-cache", "my-key", "./data.txt").await?;
+///     Ok(())
+/// }
+/// ```
+pub async fn reflink_unchecked<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+    Q: AsRef<Path>,
+{
+    async fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
+        if let Some(entry) = index::find_async(cache, key).await? {
+            reflink_hash_unchecked_sync(cache, &entry.integrity, to)
+        } else {
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
+        }
+    }
+    inner(cache.as_ref(), key.as_ref(), to.as_ref()).await
+}
+
+/// Reflinks/clonefiles cache data by hash to a specified location.
+///
+/// Fails if the destination is on a different filesystem or if the filesystem
+/// does not support reflinks.
+///
+/// Currently, reflinks are known to work on APFS (macOS), XFS, btrfs, and
+/// ReFS (Windows DevDrive)
+///
+/// ## Example
+/// ```no_run
+/// use async_std::prelude::*;
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     let sri = cacache::write("./my-cache", "my-key", b"hello world").await?;
+///     cacache::reflink_hash("./my-cache", &sri, "./data.txt").await?;
+///     Ok(())
+/// }
+/// ```
+pub async fn reflink_hash<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    Q: AsRef<Path>,
+{
+    read::reflink_async(cache.as_ref(), sri, to.as_ref()).await
 }
 
 /// Hard links a cache entry by key to a specified location.
@@ -541,13 +628,13 @@ where
 ///     Ok(())
 /// }
 /// ```
-pub fn copy_unchecked_sync<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
+pub fn copy_unchecked_sync<P, K, Q>(cache: P, key: K, to: Q) -> Result<u64>
 where
     P: AsRef<Path>,
     K: AsRef<str>,
     Q: AsRef<Path>,
 {
-    fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
+    fn inner(cache: &Path, key: &str, to: &Path) -> Result<u64> {
         if let Some(entry) = index::find(cache, key)? {
             copy_hash_unchecked_sync(cache, &entry.integrity, to)
         } else {
@@ -597,12 +684,140 @@ where
 ///     Ok(())
 /// }
 /// ```
-pub fn copy_hash_unchecked_sync<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<()>
+pub fn copy_hash_unchecked_sync<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<u64>
 where
     P: AsRef<Path>,
     Q: AsRef<Path>,
 {
     read::copy_unchecked(cache.as_ref(), sri, to.as_ref())
+}
+
+/// Creates a reflink/clonefile from a cache entry to a destination path.
+///
+/// Fails if the destination is on a different filesystem or if the filesystem
+/// does not support reflinks.
+///
+/// Currently, reflinks are known to work on APFS (macOS), XFS, btrfs, and
+/// ReFS (Windows DevDrive)
+///
+/// ## Example
+/// ```no_run
+/// use async_std::prelude::*;
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     cacache::reflink_sync("./my-cache", "my-key", "./data.txt")?;
+///     Ok(())
+/// }
+/// ```
+pub fn reflink_sync<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+    Q: AsRef<Path>,
+{
+    fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
+        if let Some(entry) = index::find(cache, key)? {
+            reflink_hash_sync(cache, &entry.integrity, to)
+        } else {
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
+        }
+    }
+    inner(cache.as_ref(), key.as_ref(), to.as_ref())
+}
+
+/// Reflinks/clonefiles cache data by hash to a specified location.
+///
+/// Fails if the destination is on a different filesystem or if the filesystem
+/// does not support reflinks.
+///
+/// Currently, reflinks are known to work on APFS (macOS), XFS, btrfs, and
+/// ReFS (Windows DevDrive)
+///
+/// ## Example
+/// ```no_run
+/// use async_std::prelude::*;
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello world")?;
+///     cacache::reflink_hash_sync("./my-cache", &sri, "./data.txt")?;
+///     Ok(())
+/// }
+/// ```
+pub fn reflink_hash_sync<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    Q: AsRef<Path>,
+{
+    read::reflink(cache.as_ref(), sri, to.as_ref())
+}
+
+/// Reflinks/clonefiles cache data by hash to a specified location. Cache data
+/// will not be checked during linking.
+///
+/// Fails if the destination is on a different filesystem or if the filesystem
+/// does not support reflinks.
+///
+/// Currently, reflinks are known to work on APFS (macOS), XFS, btrfs, and
+/// ReFS (Windows DevDrive)
+///
+/// ## Example
+/// ```no_run
+/// use async_std::prelude::*;
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     let sri = cacache::write_sync("./my-cache", "my-key", b"hello world")?;
+///     cacache::reflink_hash_unchecked_sync("./my-cache", &sri, "./data.txt")?;
+///     Ok(())
+/// }
+/// ```
+pub fn reflink_hash_unchecked_sync<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    Q: AsRef<Path>,
+{
+    read::reflink_unchecked(cache.as_ref(), sri, to.as_ref())
+}
+
+/// Reflinks/clonefiles cache data to a specified location. Cache data will
+/// not be checked during linking.
+///
+/// Fails if the destination is on a different filesystem or if the filesystem
+/// does not support reflinks.
+///
+/// Currently, reflinks are known to work on APFS (macOS), XFS, btrfs, and
+/// ReFS (Windows DevDrive)
+///
+/// ## Example
+/// ```no_run
+/// use async_std::prelude::*;
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     cacache::reflink_unchecked_sync("./my-cache", "my-key", "./data.txt")?;
+///     Ok(())
+/// }
+/// ```
+pub fn reflink_unchecked_sync<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+    Q: AsRef<Path>,
+{
+    fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
+        if let Some(entry) = index::find(cache, key)? {
+            reflink_hash_unchecked_sync(cache, &entry.integrity, to)
+        } else {
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
+        }
+    }
+    inner(cache.as_ref(), key.as_ref(), to.as_ref())
 }
 
 /// Hard links a cache entry by key to a specified location. The cache entry
