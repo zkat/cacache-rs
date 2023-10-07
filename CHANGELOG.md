@@ -1,5 +1,14 @@
 # `cacache` Release Changelog
 
+<a name="12.0.0"></a>
+## 12.0.0 (2023-10-07)
+
+### Features
+
+* **remove_fully:** add option for remove cache entry (#54) ([34ee6798](https://github.com/zkat/cacache-rs/commit/34ee679816cad95f617fbed11ad93b5f248ab50f))
+* **reflink:** Separate reflink behavior into their own functions (#58) ([cfdf4eed](https://github.com/zkat/cacache-rs/commit/cfdf4eed4d19138ea8937b12333db8280d137b3a))
+    * **BREAKING CHANGE**: some signatures for copy have changed, and copy no longer automatically reflinks
+
 <a name="11.7.1"></a>
 ## 11.7.1 (2023-09-11)
 
