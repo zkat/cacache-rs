@@ -393,6 +393,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn reflink_hash<P, Q>(cache: P, sri: &Integrity, to: Q) -> Result<()>
 where
     P: AsRef<Path>,
