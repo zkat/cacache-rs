@@ -162,6 +162,7 @@ pub fn reflink(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
     reflink_unchecked(cache, sri, to)
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn reflink_async(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
     let mut reader = open_async(cache, sri.clone()).await?;
     let mut buf = [0u8; 1024 * 8];

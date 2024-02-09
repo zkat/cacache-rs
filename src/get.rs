@@ -319,6 +319,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn reflink<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
 where
     P: AsRef<Path>,
@@ -355,6 +356,7 @@ where
 ///     Ok(())
 /// }
 /// ```
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn reflink_unchecked<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
 where
     P: AsRef<Path>,
