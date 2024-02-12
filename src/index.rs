@@ -414,6 +414,7 @@ impl RemoveOpts {
     }
 
     /// Removes an individual index metadata entry. The associated content will be left in the cache.
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
     pub async fn remove<P, K>(self, cache: P, key: K) -> Result<()>
     where
         P: AsRef<Path>,

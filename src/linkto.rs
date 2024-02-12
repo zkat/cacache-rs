@@ -1,5 +1,7 @@
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 use crate::async_lib::AsyncRead;
+#[cfg(any(feature = "async-std", feature = "tokio"))]
+use crate::async_lib::AsyncReadExt;
 use crate::content::linkto;
 use crate::errors::{Error, IoErrorExt, Result};
 use crate::{index, WriteOpts};
@@ -10,11 +12,6 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::task::{Context as TaskContext, Poll};
-
-#[cfg(feature = "async-std")]
-use futures::io::AsyncReadExt;
-#[cfg(feature = "tokio")]
-use tokio::io::AsyncReadExt;
 
 const BUF_SIZE: usize = 16 * 1024;
 const PROBE_SIZE: usize = 8;

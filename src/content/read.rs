@@ -6,10 +6,8 @@ use std::pin::Pin;
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::task::{Context, Poll};
 
-#[cfg(feature = "async-std")]
-use futures::io::AsyncReadExt;
-#[cfg(feature = "tokio")]
-use tokio::io::AsyncReadExt;
+#[cfg(any(feature = "async-std", feature = "tokio"))]
+use crate::async_lib::AsyncReadExt;
 
 use ssri::{Algorithm, Integrity, IntegrityChecker};
 
@@ -162,6 +160,7 @@ pub fn reflink(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
     reflink_unchecked(cache, sri, to)
 }
 
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn reflink_async(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {
     let mut reader = open_async(cache, sri.clone()).await?;
     let mut buf = [0u8; 1024 * 8];
