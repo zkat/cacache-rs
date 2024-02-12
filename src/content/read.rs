@@ -6,10 +6,8 @@ use std::pin::Pin;
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 use std::task::{Context, Poll};
 
-#[cfg(feature = "async-std")]
-use futures::io::AsyncReadExt;
-#[cfg(feature = "tokio")]
-use tokio::io::AsyncReadExt;
+#[cfg(any(feature = "async-std", feature = "tokio"))]
+use crate::async_lib::AsyncReadExt;
 
 use ssri::{Algorithm, Integrity, IntegrityChecker};
 
