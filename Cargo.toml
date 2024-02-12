@@ -56,7 +56,7 @@ name = "benchmarks"
 harness = false
 
 [features]
-default = ["async-std", "mmap"]
+default = ["async-std", "mmap", "link_to"]
 mmap = ["memmap2", "libc"]
 async-std = ["dep:async-std", "futures"]
 link_to = []
