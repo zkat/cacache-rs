@@ -1,5 +1,15 @@
 # `cacache` Release Changelog
 
+<a name="13.0.0"></a>
+## 13.0.0 (2024-02-15)
+
+### Bug Fixes
+
+* **sync:** Added the feature flags for compilation without the async runtime. Fixes #64. (#65) ([ffa1ab72](https://github.com/zkat/cacache-rs/commit/ffa1ab7254e0b051e6d65fe16b71ab44be04c968))
+    * **BREAKING CHANGE**: this bumps the MSRV to 1.70.0
+* **remove_fully:** Remove the key content when set `remove_fully` to `true` (#63) ([761d7155](https://github.com/zkat/cacache-rs/commit/761d71558a4b9f06907cb5ff43247fdbd158716b))
+    * **BREAKING CHANGE**: this is technically a fix, but maybe people didn't expect this.
+
 <a name="12.0.0"></a>
 ## 12.0.0 (2023-10-07)
 
