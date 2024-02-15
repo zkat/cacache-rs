@@ -20,6 +20,7 @@ use walkdir::WalkDir;
 
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 use crate::async_lib::{AsyncBufReadExt, AsyncWriteExt};
+use crate::content::path::content_path;
 use crate::errors::{IoErrorExt, Result};
 use crate::put::WriteOpts;
 
@@ -407,6 +408,11 @@ impl RemoveOpts {
         if !self.remove_fully {
             delete(cache.as_ref(), key.as_ref())
         } else {
+            if let Some(meta) = crate::metadata_sync(cache.as_ref(), key.as_ref())? {
+                let content = content_path(cache.as_ref(), &meta.integrity);
+                fs::remove_file(&content)
+                    .with_context(|| format!("Failed to remove content at {content:?}"))?;
+            }
             let bucket = bucket_path(cache.as_ref(), key.as_ref());
             fs::remove_file(&bucket)
                 .with_context(|| format!("Failed to remove bucket at {bucket:?}"))
@@ -423,6 +429,12 @@ impl RemoveOpts {
         if !self.remove_fully {
             delete_async(cache.as_ref(), key.as_ref()).await
         } else {
+            if let Some(meta) = crate::metadata(cache.as_ref(), key.as_ref()).await? {
+                let content = content_path(cache.as_ref(), &meta.integrity);
+                crate::async_lib::remove_file(&content)
+                    .await
+                    .with_context(|| format!("Failed to remove content at {content:?}"))?;
+            }
             let bucket = bucket_path(cache.as_ref(), key.as_ref());
             crate::async_lib::remove_file(&bucket)
                 .await
@@ -534,6 +546,44 @@ mod tests {
             delete_async(&dir, "hello").await.unwrap();
         });
         assert_eq!(find(&dir, "hello").unwrap(), None);
+    }
+
+    #[test]
+    fn delete_fully() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let content = content_path(&dir, &"sha1-deadbeef".parse().unwrap());
+        fs::create_dir_all(content.parent().unwrap()).unwrap();
+        fs::write(content.as_path(), "hello").unwrap();
+        let sri: Integrity = "sha1-deadbeef".parse().unwrap();
+        let time = 1_234_567;
+        insert(&dir, "hello", WriteOpts::new().integrity(sri).time(time)).unwrap();
+        RemoveOpts::new()
+            .remove_fully(true)
+            .remove_sync(&dir, "hello")
+            .unwrap();
+        assert_eq!(find(&dir, "hello").unwrap(), None);
+        assert!(!content.exists());
+    }
+
+    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[async_test]
+    async fn delete_fully_async() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let content = content_path(&dir, &"sha1-deadbeef".parse().unwrap());
+        fs::create_dir_all(content.parent().unwrap()).unwrap();
+        fs::write(content.as_path(), "hello").unwrap();
+        let sri: Integrity = "sha1-deadbeef".parse().unwrap();
+        let time = 1_234_567;
+        insert(&dir, "hello", WriteOpts::new().integrity(sri).time(time)).unwrap();
+        RemoveOpts::new()
+            .remove_fully(true)
+            .remove(&dir, "hello")
+            .await
+            .unwrap();
+        assert_eq!(find(&dir, "hello").unwrap(), None);
+        assert!(!content.exists());
     }
 
     #[test]
