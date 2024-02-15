@@ -61,8 +61,6 @@
 
 * **deps:** bump ssri too ([4950998f](https://github.com/zkat/cacache-rs/commit/4950998f77444786ef747cbacfea5214741e350d))
 
-# `cacache` Release Changelog
-
 <a name="11.5.0"></a>
 ## 11.5.0 (2023-04-01)
 
