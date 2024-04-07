@@ -1,4 +1,4 @@
-# cacache ![CI](https://github.com/zkat/cacache-rs/workflows/CI/badge.svg) ![crates.io](https://img.shields.io/crates/v/cacache.svg)
+# cacache [![CI](https://github.com/zkat/cacache-rs/workflows/CI/badge.svg)](https://github.com/zkat/cacache-rs/actions) [![crates.io](https://img.shields.io/crates/v/cacache.svg)](https://crates.io/crates/cacache)
 
 A high-performance, concurrent, content-addressable disk cache, optimized for async APIs.
 
