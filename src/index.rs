@@ -11,7 +11,7 @@ use digest::Digest;
 use either::{Left, Right};
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 use futures::stream::StreamExt;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha1::Sha1;
 use sha2::Sha256;
@@ -26,7 +26,7 @@ use crate::content::path::content_path;
 use crate::errors::{IoErrorExt, Result};
 use crate::put::WriteOpts;
 
-const INDEX_VERSION: &str = "5";
+const INDEX_VERSION: &str = "6";
 
 /// Represents a cache index entry, which points to content.
 #[derive(PartialEq, Debug)]
