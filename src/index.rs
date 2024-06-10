@@ -393,13 +393,15 @@ impl RemoveOpts {
     }
 
     /// Set the remove fully option
-    /// If remove_fully is set to true then the index file itself will be physically deleted rather than appending a null.
+    /// If remove_fully is set to true then the index and content file itself will be physically deleted rather than appending a null.
     pub fn remove_fully(mut self, remove_fully: bool) -> Self {
         self.remove_fully = remove_fully;
         self
     }
 
-    /// Removes an individual index metadata entry. The associated content will be left in the cache.
+    /// Removes an individual index metadata entry.
+    /// If remove_fully is set to false (default), the associated content will be left in the cache.
+    /// If remove_fully is true, both the index entry and the contents will be physically removed from the disk
     pub fn remove_sync<P, K>(self, cache: P, key: K) -> Result<()>
     where
         P: AsRef<Path>,
@@ -419,7 +421,9 @@ impl RemoveOpts {
         }
     }
 
-    /// Removes an individual index metadata entry. The associated content will be left in the cache.
+    /// Removes an individual index metadata entry.
+    /// If remove_fully is set to false (default), the associated content will be left in the cache.
+    /// If remove_fully is true, both the index entry and the contents will be physically removed from the disk
     #[cfg(any(feature = "async-std", feature = "tokio"))]
     pub async fn remove<P, K>(self, cache: P, key: K) -> Result<()>
     where
