@@ -402,7 +402,7 @@ where
     read::reflink_async(cache.as_ref(), sri, to.as_ref()).await
 }
 
-/// Hard links a cache entry by key to a specified location.
+/// Hard links a cache entry by hash to a specified location.
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn hard_link_hash<P, K, Q>(cache: P, key: &Integrity, to: Q) -> Result<()>
 where
