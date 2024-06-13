@@ -404,6 +404,16 @@ where
 
 /// Hard links a cache entry by key to a specified location.
 #[cfg(any(feature = "async-std", feature = "tokio"))]
+pub async fn hard_link_hash<P, K, Q>(cache: P, key: &Integrity, to: Q) -> Result<()>
+where
+    P: AsRef<Path>,
+    Q: AsRef<Path>,
+{
+    read::hard_link_async(cache, &entry.integrity, to).await
+}
+
+/// Hard links a cache entry by key to a specified location.
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 pub async fn hard_link<P, K, Q>(cache: P, key: K, to: Q) -> Result<()>
 where
     P: AsRef<Path>,
@@ -412,7 +422,7 @@ where
 {
     async fn inner(cache: &Path, key: &str, to: &Path) -> Result<()> {
         if let Some(entry) = index::find(cache, key)? {
-            read::hard_link_async(cache, &entry.integrity, to).await
+            hard_link_hash(cache, &entry.integrity, to).await
         } else {
             Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
         }
