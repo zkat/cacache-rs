@@ -404,7 +404,7 @@ where
 
 /// Hard links a cache entry by hash to a specified location.
 #[cfg(any(feature = "async-std", feature = "tokio"))]
-pub async fn hard_link_hash<P, K, Q>(cache: P, key: &Integrity, to: Q) -> Result<()>
+pub async fn hard_link_hash<P, Q>(cache: P, key: &Integrity, to: Q) -> Result<()>
 where
     P: AsRef<Path>,
     Q: AsRef<Path>,
