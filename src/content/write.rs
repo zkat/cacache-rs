@@ -187,7 +187,7 @@ impl AsyncWriter {
                 })))))
             }
             _ => Err(Error::IoError(
-                std::io::Error::other("File not created"),
+                std::io::Error::new(std::io::ErrorKind::Other, "temp file create error"),
                 "Possible memory issues for file handle".into(),
             )),
         }
