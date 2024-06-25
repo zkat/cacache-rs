@@ -15,7 +15,7 @@ async-std = { version = "1.10.0", features = ["unstable"], optional = true }
 digest = "0.10.6"
 either = "1.6.1"
 futures = { version = "0.3.17", optional = true }
-hex = "0.4.3"
+const-hex = "1.0.0"
 memmap2 = { version = "0.5.8", optional = true }
 miette = "5.7.0"
 reflink-copy = "0.1.9"
