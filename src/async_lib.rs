@@ -100,8 +100,8 @@ pub fn unwrap_joinhandle_value<T>(value: T) -> T {
 pub use tokio::task::JoinHandle;
 #[cfg(feature = "tokio")]
 #[inline]
-pub fn unwrap_joinhandle_value<T>(value: Result<T, tokio::task::JoinError>) -> T {
-    value.unwrap()
+pub fn unwrap_joinhandle_value<T>(value: T) -> T {
+    value
 }
 
 use tempfile::NamedTempFile;
@@ -110,19 +110,28 @@ use crate::errors::IoErrorExt;
 
 #[cfg(feature = "async-std")]
 #[inline]
-pub async fn create_named_tempfile(tmp_path: std::path::PathBuf) -> crate::Result<NamedTempFile> {
+pub async fn create_named_tempfile(
+    tmp_path: std::path::PathBuf,
+) -> Option<crate::Result<NamedTempFile>> {
     let cloned = tmp_path.clone();
-    spawn_blocking(|| NamedTempFile::new_in(tmp_path))
-        .await
-        .with_context(|| format!("Failed to create a temp file at {}", cloned.display()))
+
+    Some(
+        spawn_blocking(|| NamedTempFile::new_in(tmp_path))
+            .await
+            .with_context(|| format!("Failed to create a temp file at {}", cloned.display())),
+    )
 }
 
 #[cfg(feature = "tokio")]
 #[inline]
-pub async fn create_named_tempfile(tmp_path: std::path::PathBuf) -> crate::Result<NamedTempFile> {
+pub async fn create_named_tempfile(
+    tmp_path: std::path::PathBuf,
+) -> Option<crate::Result<NamedTempFile>> {
     let cloned = tmp_path.clone();
-    spawn_blocking(|| NamedTempFile::new_in(tmp_path))
-        .await
-        .unwrap()
-        .with_context(|| format!("Failed to create a temp file at {}", cloned.display()))
+    match spawn_blocking(|| NamedTempFile::new_in(tmp_path)).await {
+        Ok(ctx) => Some(
+            ctx.with_context(|| format!("Failed to create a temp file at {}", cloned.display())),
+        ),
+        _ => None,
+    }
 }
