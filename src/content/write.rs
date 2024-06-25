@@ -19,6 +19,7 @@ use tempfile::NamedTempFile;
 use crate::async_lib::{AsyncWrite, JoinHandle};
 use crate::content::path;
 use crate::errors::{IoErrorExt, Result};
+use crate::Error;
 
 #[cfg(feature = "mmap")]
 pub const MAX_MMAP_SIZE: usize = 1024 * 1024;
@@ -171,16 +172,25 @@ impl AsyncWriter {
                     tmp_path.display()
                 )
             })?;
-        let mut tmpfile = crate::async_lib::create_named_tempfile(tmp_path).await?;
-        let mmap = make_mmap(&mut tmpfile, size)?;
-        Ok(AsyncWriter(Mutex::new(State::Idle(Some(Inner {
-            cache: cache_path,
-            builder: IntegrityOpts::new().algorithm(algo),
-            mmap,
-            tmpfile,
-            buf: vec![],
-            last_op: None,
-        })))))
+
+        match crate::async_lib::create_named_tempfile(tmp_path).await {
+            Some(tmpfile) => {
+                let mut tmpfile = tmpfile?;
+                let mmap = make_mmap(&mut tmpfile, size)?;
+                Ok(AsyncWriter(Mutex::new(State::Idle(Some(Inner {
+                    cache: cache_path,
+                    builder: IntegrityOpts::new().algorithm(algo),
+                    mmap,
+                    tmpfile,
+                    buf: vec![],
+                    last_op: None,
+                })))))
+            }
+            _ => Err(Error::IoError(
+                std::io::Error::new(std::io::ErrorKind::Other, "temp file create error"),
+                "Possible memory issues for file handle".into(),
+            )),
+        }
     }
 
     pub async fn close(self) -> Result<Integrity> {
@@ -247,9 +257,11 @@ impl AsyncWriter {
                     },
                     // Poll the asynchronous operation the file is currently blocked on.
                     State::Busy(task) => {
-                        *state = crate::async_lib::unwrap_joinhandle_value(futures::ready!(
-                            Pin::new(task).poll(cx)
-                        ))
+                        let next_state = crate::async_lib::unwrap_joinhandle_value(
+                            futures::ready!(Pin::new(task).poll(cx)),
+                        );
+
+                        update_state(state, next_state);
                     }
                 }
             }
@@ -270,108 +282,119 @@ impl AsyncWrite for AsyncWriter {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
-        let state = &mut *self.0.lock().unwrap();
+        match self.0.lock() {
+            Ok(mut state) => {
+                let state = &mut *state;
 
-        loop {
-            match state {
-                State::Idle(opt) => {
-                    // Grab a reference to the inner representation of the file or return an error
-                    // if the file is closed.
-                    let inner = opt
-                        .as_mut()
-                        .ok_or_else(|| crate::errors::io_error("file closed"))?;
+                loop {
+                    match state {
+                        State::Idle(opt) => {
+                            // Grab a reference to the inner representation of the file or return an error
+                            // if the file is closed.
+                            let inner = opt
+                                .as_mut()
+                                .ok_or_else(|| crate::errors::io_error("file closed"))?;
 
-                    // Check if the operation has completed.
-                    if let Some(Operation::Write(res)) = inner.last_op.take() {
-                        let n = res?;
+                            // Check if the operation has completed.
+                            if let Some(Operation::Write(res)) = inner.last_op.take() {
+                                let n = res?;
 
-                        // If more data was written than is available in the buffer, let's retry
-                        // the write operation.
-                        if n <= buf.len() {
-                            return Poll::Ready(Ok(n));
-                        }
-                    } else {
-                        let mut inner = opt.take().unwrap();
-
-                        // Set the length of the inner buffer to the length of the provided buffer.
-                        if inner.buf.len() < buf.len() {
-                            inner.buf.reserve(buf.len() - inner.buf.len());
-                        }
-                        unsafe {
-                            inner.buf.set_len(buf.len());
-                        }
-
-                        // Copy the data to write into the inner buffer.
-                        inner.buf[..buf.len()].copy_from_slice(buf);
-
-                        // Start the operation asynchronously.
-                        *state = State::Busy(crate::async_lib::spawn_blocking(|| {
-                            inner.builder.input(&inner.buf);
-                            if let Some(mmap) = &mut inner.mmap {
-                                mmap.copy_from_slice(&inner.buf);
-                                inner.last_op = Some(Operation::Write(Ok(inner.buf.len())));
-                                State::Idle(Some(inner))
+                                // If more data was written than is available in the buffer, let's retry
+                                // the write operation.
+                                if n <= buf.len() {
+                                    return Poll::Ready(Ok(n));
+                                }
                             } else {
-                                let res = inner.tmpfile.write(&inner.buf);
-                                inner.last_op = Some(Operation::Write(res));
-                                State::Idle(Some(inner))
+                                let mut inner = opt.take().unwrap();
+
+                                // Set the length of the inner buffer to the length of the provided buffer.
+                                if inner.buf.len() < buf.len() {
+                                    inner.buf.reserve(buf.len() - inner.buf.len());
+                                }
+                                unsafe {
+                                    inner.buf.set_len(buf.len());
+                                }
+
+                                // Copy the data to write into the inner buffer.
+                                inner.buf[..buf.len()].copy_from_slice(buf);
+
+                                // Start the operation asynchronously.
+                                *state = State::Busy(crate::async_lib::spawn_blocking(|| {
+                                    inner.builder.input(&inner.buf);
+                                    if let Some(mmap) = &mut inner.mmap {
+                                        mmap.copy_from_slice(&inner.buf);
+                                        inner.last_op = Some(Operation::Write(Ok(inner.buf.len())));
+                                        State::Idle(Some(inner))
+                                    } else {
+                                        let res = inner.tmpfile.write(&inner.buf);
+                                        inner.last_op = Some(Operation::Write(res));
+                                        State::Idle(Some(inner))
+                                    }
+                                }));
                             }
-                        }));
+                        }
+                        // Poll the asynchronous operation the file is currently blocked on.
+                        State::Busy(task) => {
+                            let next_state = crate::async_lib::unwrap_joinhandle_value(
+                                futures::ready!(Pin::new(task).poll(cx)),
+                            );
+
+                            update_state(state, next_state);
+                        }
                     }
                 }
-                // Poll the asynchronous operation the file is currently blocked on.
-                State::Busy(task) => {
-                    *state = crate::async_lib::unwrap_joinhandle_value(futures::ready!(Pin::new(
-                        task
-                    )
-                    .poll(cx)))
-                }
             }
+            _ => Poll::Pending,
         }
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        let state = &mut *self.0.lock().unwrap();
-
-        loop {
-            match state {
-                State::Idle(opt) => {
-                    // Grab a reference to the inner representation of the file or return if the
-                    // file is closed.
-                    let inner = match opt.as_mut() {
-                        None => return Poll::Ready(Ok(())),
-                        Some(s) => s,
-                    };
-
-                    // Check if the operation has completed.
-                    if let Some(Operation::Flush(res)) = inner.last_op.take() {
-                        return Poll::Ready(res);
-                    } else {
-                        let mut inner = opt.take().unwrap();
-
-                        if let Some(mmap) = &inner.mmap {
-                            match mmap.flush_async() {
-                                Ok(_) => (),
-                                Err(e) => return Poll::Ready(Err(e)),
+        match self.0.lock() {
+            Ok(mut state) => {
+                let state = &mut *state;
+                loop {
+                    match state {
+                        State::Idle(opt) => {
+                            // Grab a reference to the inner representation of the file or return if the
+                            // file is closed.
+                            let inner = match opt.as_mut() {
+                                None => return Poll::Ready(Ok(())),
+                                Some(s) => s,
                             };
-                        }
 
-                        // Start the operation asynchronously.
-                        *state = State::Busy(crate::async_lib::spawn_blocking(|| {
-                            let res = inner.tmpfile.flush();
-                            inner.last_op = Some(Operation::Flush(res));
-                            State::Idle(Some(inner))
-                        }));
+                            // Check if the operation has completed.
+                            if let Some(Operation::Flush(res)) = inner.last_op.take() {
+                                return Poll::Ready(res);
+                            } else {
+                                let mut inner = opt.take().unwrap();
+
+                                if let Some(mmap) = &inner.mmap {
+                                    match mmap.flush_async() {
+                                        Ok(_) => (),
+                                        Err(e) => return Poll::Ready(Err(e)),
+                                    };
+                                }
+
+                                // Start the operation asynchronously.
+                                *state = State::Busy(crate::async_lib::spawn_blocking(|| {
+                                    let res = inner.tmpfile.flush();
+                                    inner.last_op = Some(Operation::Flush(res));
+                                    State::Idle(Some(inner))
+                                }));
+                            }
+                        }
+                        // Poll the asynchronous operation the file is currently blocked on.
+                        State::Busy(task) => {
+                            let next_state = crate::async_lib::unwrap_joinhandle_value(
+                                futures::ready!(Pin::new(task).poll(cx)),
+                            );
+
+                            update_state(state, next_state);
+                        }
                     }
                 }
-                // Poll the asynchronous operation the file is currently blocked on.
-                State::Busy(task) => {
-                    *state = crate::async_lib::unwrap_joinhandle_value(futures::ready!(Pin::new(
-                        task
-                    )
-                    .poll(cx)))
-                }
             }
+            _ => Poll::Pending,
         }
     }
 
@@ -386,6 +409,28 @@ impl AsyncWrite for AsyncWriter {
     }
 }
 
+#[cfg(feature = "tokio")]
+/// Update the state.
+fn update_state(
+    current_state: &mut State,
+    next_state: std::result::Result<State, tokio::task::JoinError>,
+) {
+    match next_state {
+        Ok(next) => {
+            *current_state = next;
+        }
+        _ => {
+            *current_state = State::Idle(None);
+        }
+    }
+}
+
+#[cfg(not(feature = "tokio"))]
+/// Update the state.
+fn update_state(current_state: &mut State, next_state: State) {
+    *current_state = next_state;
+}
+
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 impl AsyncWriter {
     #[inline]
@@ -393,32 +438,37 @@ impl AsyncWriter {
         self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<std::io::Result<()>> {
-        let state = &mut *self.0.lock().unwrap();
+        match self.0.lock() {
+            Ok(mut state) => {
+                let state = &mut *state;
+                loop {
+                    match state {
+                        State::Idle(opt) => {
+                            // Grab a reference to the inner representation of the file or return if the
+                            // file is closed.
+                            let inner = match opt.take() {
+                                None => return Poll::Ready(Ok(())),
+                                Some(s) => s,
+                            };
 
-        loop {
-            match state {
-                State::Idle(opt) => {
-                    // Grab a reference to the inner representation of the file or return if the
-                    // file is closed.
-                    let inner = match opt.take() {
-                        None => return Poll::Ready(Ok(())),
-                        Some(s) => s,
-                    };
+                            // Start the operation asynchronously.
+                            *state = State::Busy(crate::async_lib::spawn_blocking(|| {
+                                drop(inner);
+                                State::Idle(None)
+                            }));
+                        }
+                        // Poll the asynchronous operation the file is currently blocked on.
+                        State::Busy(task) => {
+                            let next_state = crate::async_lib::unwrap_joinhandle_value(
+                                futures::ready!(Pin::new(task).poll(cx)),
+                            );
 
-                    // Start the operation asynchronously.
-                    *state = State::Busy(crate::async_lib::spawn_blocking(|| {
-                        drop(inner);
-                        State::Idle(None)
-                    }));
-                }
-                // Poll the asynchronous operation the file is currently blocked on.
-                State::Busy(task) => {
-                    *state = crate::async_lib::unwrap_joinhandle_value(futures::ready!(Pin::new(
-                        task
-                    )
-                    .poll(cx)))
+                            update_state(state, next_state);
+                        }
+                    }
                 }
             }
+            _ => Poll::Pending,
         }
     }
 }
