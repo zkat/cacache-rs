@@ -19,6 +19,7 @@ use tempfile::NamedTempFile;
 use crate::async_lib::{AsyncWrite, JoinHandle};
 use crate::content::path;
 use crate::errors::{IoErrorExt, Result};
+#[cfg(any(feature = "async-std", feature = "tokio"))]
 use crate::Error;
 
 #[cfg(feature = "mmap")]
@@ -425,7 +426,7 @@ fn update_state(
     }
 }
 
-#[cfg(not(feature = "tokio"))]
+#[cfg(feature = "async-std")]
 /// Update the state.
 fn update_state(current_state: &mut State, next_state: State) {
     *current_state = next_state;
