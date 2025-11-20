@@ -118,7 +118,7 @@ pub fn read(cache: &Path, sri: &Integrity) -> Result<Vec<u8>> {
 }
 
 #[cfg(any(feature = "async-std", feature = "tokio"))]
-pub async fn read_async<'c, 's>(cache: &'c Path, sri: Integrity, verify_integrity: bool) -> Result<Vec<u8>> {
+pub async fn read_async<'c, 's>(cache: &'c Path, sri: Integrity, verify_integrity: bool) -> Result<(Vec<u8>, Integrity)> {
     let cpath = path::content_path(&cache, &sri);
     let ret = crate::async_lib::read(&cpath).await.with_context(|| {
         format!(
@@ -126,21 +126,22 @@ pub async fn read_async<'c, 's>(cache: &'c Path, sri: Integrity, verify_integrit
             path::content_path(&cache, &sri).display()
         )
     })?;
-    let ret = if verify_integrity {
+    Ok(if verify_integrity {
+        // we require owned Integrity because of the below move which would otherwise try to
+        // provide a reference to a closure that moves to another thread, i.e. `'s: 'static` which fails 
         let integrity_check = move || {
             sri.check(&ret)?;
-            Ok::<_, ssri::Error>(ret)
+            Ok::<_, ssri::Error>((sri, ret))
         };
         #[cfg(feature = "tokio")]
-        let ret = tokio::task::spawn_blocking(integrity_check).await??;
+        let (sri, ret) = tokio::task::spawn_blocking(integrity_check).await??;
         #[cfg(feature = "async-std")]
-        let ret = async_std::task::spawn_blocking(integrity_check).await?;
+        let (sri, ret) = async_std::task::spawn_blocking(integrity_check).await?;
 
-        ret
+        (ret, sri)
     } else {
-        ret
-    };
-    Ok(ret)
+        (ret, sri)
+    })
 }
 
 pub fn reflink_unchecked(cache: &Path, sri: &Integrity, to: &Path) -> Result<()> {

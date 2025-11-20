@@ -66,7 +66,7 @@
 //!   let sri = cacache::write("./my-cache", "key", b"hello").await?;
 //!
 //!   // ...data gets looked up by `sri` ("Subresource Integrity").
-//!   let data = cacache::read_hash("./my-cache", sri).await?;
+//!   let (data, _) = cacache::read_hash("./my-cache", sri).await?;
 //!   assert_eq!(data, b"hello");
 //!
 //!   Ok(())

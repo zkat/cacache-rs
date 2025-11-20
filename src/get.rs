@@ -159,7 +159,7 @@ where
 {
     async fn inner(cache: &Path, key: &str) -> Result<Vec<u8>> {
         if let Some(entry) = index::find_async(cache, key).await? {
-            read_hash(cache, entry.integrity).await
+            read_hash(cache, entry.integrity).await.map(|(r, _i)| r)
         } else {
             Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
         }
@@ -192,7 +192,7 @@ where
 {
     async fn inner(cache: &Path, key: &str) -> Result<Vec<u8>> {
         if let Some(entry) = index::find_async(cache, key).await? {
-            read_hash_no_integrity(cache, entry.integrity).await
+            read_hash_no_integrity(cache, entry.integrity).await.map(|(r, _i)| r)
         } else {
             Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
         }
@@ -211,12 +211,12 @@ where
 /// #[async_attributes::main]
 /// async fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
-///     let data: Vec<u8> = cacache::read_hash("./my-cache", sri).await?;
+///     let (data, _): (Vec<u8>, _) = cacache::read_hash("./my-cache", sri).await?;
 ///     Ok(())
 /// }
 /// ```
 #[cfg(any(feature = "async-std", feature = "tokio"))]
-pub async fn read_hash<P>(cache: P, sri: Integrity) -> Result<Vec<u8>>
+pub async fn read_hash<P>(cache: P, sri: Integrity) -> Result<(Vec<u8>, Integrity)>
 where
     P: AsRef<Path>,
 {
@@ -234,7 +234,7 @@ where
 /// #[async_attributes::main]
 /// async fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
-///     let data: Vec<u8> = cacache::read_hash_no_integrity("./my-cache", sri).await?;
+///     let (data, _): (Vec<u8>, _) = cacache::read_hash_no_integrity("./my-cache", sri).await?;
 ///     Ok(())
 /// }
 /// ```
@@ -242,7 +242,7 @@ where
 /// If you have no integrity this function is for you.
 #[doc(hidden)]
 #[cfg(any(feature = "async-std", feature = "tokio"))]
-pub async fn read_hash_no_integrity<P>(cache: P, sri: Integrity) -> Result<Vec<u8>>
+pub async fn read_hash_no_integrity<P>(cache: P, sri: Integrity) -> Result<(Vec<u8>, Integrity)>
 where
     P: AsRef<Path>,
 {
@@ -1054,7 +1054,7 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri = crate::write(&dir, "my-key", b"hello world").await.unwrap();
 
-        let data = crate::read_hash(&dir, sri).await.unwrap();
+        let (data, _) = crate::read_hash(&dir, sri).await.unwrap();
         assert_eq!(data, b"hello world");
     }
 
