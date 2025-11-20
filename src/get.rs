@@ -168,6 +168,39 @@ where
 }
 
 /// Reads the entire contents of a cache file into a bytes vector, looking the
+/// data up by key. Skips integrity checking. Use this for loading large files.
+///
+/// ## Example
+/// ```no_run
+/// use async_std::prelude::*;
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     let data: Vec<u8> = cacache::read_no_integrity("./my-cache", "my-key").await?;
+///     Ok(())
+/// }
+/// ```
+/// 
+/// If you have no integrity this function is for you.
+#[doc(hidden)]
+#[cfg(any(feature = "async-std", feature = "tokio"))]
+pub async fn read_no_integrity<P, K>(cache: P, key: K) -> Result<Vec<u8>>
+where
+    P: AsRef<Path>,
+    K: AsRef<str>,
+{
+    async fn inner(cache: &Path, key: &str) -> Result<Vec<u8>> {
+        if let Some(entry) = index::find_async(cache, key).await? {
+            read_hash_no_integrity(cache, entry.integrity).await
+        } else {
+            Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
+        }
+    }
+    inner(cache.as_ref(), key.as_ref()).await
+}
+
+/// Reads the entire contents of a cache file into a bytes vector, looking the
 /// data up by its content address.
 ///
 /// ## Example
@@ -178,7 +211,7 @@ where
 /// #[async_attributes::main]
 /// async fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
-///     let data: Vec<u8> = cacache::read_hash("./my-cache", &sri).await?;
+///     let data: Vec<u8> = cacache::read_hash("./my-cache", sri).await?;
 ///     Ok(())
 /// }
 /// ```
@@ -187,7 +220,33 @@ pub async fn read_hash<P>(cache: P, sri: Integrity) -> Result<Vec<u8>>
 where
     P: AsRef<Path>,
 {
-    read::read_async(cache.as_ref(), sri).await
+    read::read_async(cache.as_ref(), sri, true).await
+}
+
+/// Reads the entire contents of a cache file into a bytes vector, looking the
+/// data up by its content address. Skips integrity checking. Use this for large files.
+///
+/// ## Example
+/// ```no_run
+/// use async_std::prelude::*;
+/// use async_attributes;
+///
+/// #[async_attributes::main]
+/// async fn main() -> cacache::Result<()> {
+///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
+///     let data: Vec<u8> = cacache::read_hash_no_integrity("./my-cache", sri).await?;
+///     Ok(())
+/// }
+/// ```
+/// 
+/// If you have no integrity this function is for you.
+#[doc(hidden)]
+#[cfg(any(feature = "async-std", feature = "tokio"))]
+pub async fn read_hash_no_integrity<P>(cache: P, sri: Integrity) -> Result<Vec<u8>>
+where
+    P: AsRef<Path>,
+{
+    read::read_async(cache.as_ref(), sri, false).await
 }
 
 /// Copies cache data to a specified location. Returns the number of bytes
@@ -995,7 +1054,7 @@ mod tests {
         let dir = tmp.path().to_owned();
         let sri = crate::write(&dir, "my-key", b"hello world").await.unwrap();
 
-        let data = crate::read_hash(&dir, &sri).await.unwrap();
+        let data = crate::read_hash(&dir, sri).await.unwrap();
         assert_eq!(data, b"hello world");
     }
 

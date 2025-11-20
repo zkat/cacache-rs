@@ -652,7 +652,7 @@ mod tests {
         let integrity = crate::write_hash(&dir, &original)
             .await
             .expect("should be able to write a hash asynchronously");
-        let bytes = crate::read_hash(&dir, &integrity)
+        let bytes = crate::read_hash(&dir, integrity)
             .await
             .expect("should be able to read back what we wrote");
         let result =

@@ -118,8 +118,7 @@ pub fn read(cache: &Path, sri: &Integrity) -> Result<Vec<u8>> {
 }
 
 #[cfg(any(feature = "async-std", feature = "tokio"))]
-pub async fn read_async<'c, 's>(cache: &'c Path, sri: Integrity) -> Result<Vec<u8>> {
-    // let cache = cache.to_path_buf();
+pub async fn read_async<'c, 's>(cache: &'c Path, sri: Integrity, verify_integrity: bool) -> Result<Vec<u8>> {
     let cpath = path::content_path(&cache, &sri);
     let ret = crate::async_lib::read(&cpath).await.with_context(|| {
         format!(
@@ -127,14 +126,20 @@ pub async fn read_async<'c, 's>(cache: &'c Path, sri: Integrity) -> Result<Vec<u
             path::content_path(&cache, &sri).display()
         )
     })?;
-    let integrity_check = move || {
-        sri.check(&ret)?;
-        Ok::<_, ssri::Error>(ret)
+    let ret = if verify_integrity {
+        let integrity_check = move || {
+            sri.check(&ret)?;
+            Ok::<_, ssri::Error>(ret)
+        };
+        #[cfg(feature = "tokio")]
+        let ret = tokio::task::spawn_blocking(integrity_check).await??;
+        #[cfg(feature = "async-std")]
+        let ret = async_std::task::spawn_blocking(integrity_check).await?;
+
+        ret
+    } else {
+        ret
     };
-    #[cfg(feature = "tokio")]
-    let ret = tokio::task::spawn_blocking(integrity_check).await??;
-    #[cfg(feature = "async-std")]
-    let ret = async_std::task::spawn_blocking(integrity_check).await?;
     Ok(ret)
 }
 
