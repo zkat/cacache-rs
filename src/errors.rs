@@ -31,6 +31,12 @@ pub enum Error {
     #[error(transparent)]
     #[diagnostic(code(cacache::integrity_error), url(docsrs))]
     IntegrityError(#[from] ssri::Error),
+
+    /// Returned when a Tokio join error occured.
+    #[cfg(feature="tokio")]
+    #[error(transparent)]
+    #[diagnostic(code(cacache::tokio_joinerror), url(docsrs))]
+    TokioJoinError(#[from] tokio::task::JoinError)
 }
 
 /// The result type returned by calls to this library

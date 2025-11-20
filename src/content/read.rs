@@ -118,15 +118,23 @@ pub fn read(cache: &Path, sri: &Integrity) -> Result<Vec<u8>> {
 }
 
 #[cfg(any(feature = "async-std", feature = "tokio"))]
-pub async fn read_async<'a>(cache: &'a Path, sri: &'a Integrity) -> Result<Vec<u8>> {
-    let cpath = path::content_path(cache, sri);
+pub async fn read_async<'c, 's>(cache: &'c Path, sri: Integrity) -> Result<Vec<u8>> {
+    // let cache = cache.to_path_buf();
+    let cpath = path::content_path(&cache, &sri);
     let ret = crate::async_lib::read(&cpath).await.with_context(|| {
         format!(
             "Failed to read contents for file at {}",
-            path::content_path(cache, sri).display()
+            path::content_path(&cache, &sri).display()
         )
     })?;
-    sri.check(&ret)?;
+    let integrity_check = move || {
+        sri.check(&ret)?;
+        Ok::<_, ssri::Error>(ret)
+    };
+    #[cfg(feature = "tokio")]
+    let ret = tokio::task::spawn_blocking(integrity_check).await??;
+    #[cfg(feature = "async-std")]
+    let ret = async_std::task::spawn_blocking(integrity_check).await?;
     Ok(ret)
 }
 

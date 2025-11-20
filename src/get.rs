@@ -159,7 +159,7 @@ where
 {
     async fn inner(cache: &Path, key: &str) -> Result<Vec<u8>> {
         if let Some(entry) = index::find_async(cache, key).await? {
-            read_hash(cache, &entry.integrity).await
+            read_hash(cache, entry.integrity).await
         } else {
             Err(Error::EntryNotFound(cache.to_path_buf(), key.into()))
         }
@@ -183,7 +183,7 @@ where
 /// }
 /// ```
 #[cfg(any(feature = "async-std", feature = "tokio"))]
-pub async fn read_hash<P>(cache: P, sri: &Integrity) -> Result<Vec<u8>>
+pub async fn read_hash<P>(cache: P, sri: Integrity) -> Result<Vec<u8>>
 where
     P: AsRef<Path>,
 {
