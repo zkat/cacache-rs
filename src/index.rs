@@ -11,12 +11,14 @@ use digest::Digest;
 use either::{Left, Right};
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 use futures::stream::StreamExt;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha1::Sha1;
 use sha2::Sha256;
 use ssri::Integrity;
 use walkdir::WalkDir;
+
+use base64_serde::base64_serde_type;
 
 #[cfg(any(feature = "async-std", feature = "tokio"))]
 use crate::async_lib::{AsyncBufReadExt, AsyncWriteExt};
@@ -24,7 +26,7 @@ use crate::content::path::content_path;
 use crate::errors::{IoErrorExt, Result};
 use crate::put::WriteOpts;
 
-const INDEX_VERSION: &str = "5";
+const INDEX_VERSION: &str = "6";
 
 /// Represents a cache index entry, which points to content.
 #[derive(PartialEq, Debug)]
@@ -50,7 +52,37 @@ struct SerializableMetadata {
     time: u128,
     size: usize,
     metadata: Value,
+    #[serde(with = "option_base64")]
     raw_metadata: Option<Vec<u8>>,
+}
+
+base64_serde_type!(Base64Standard, base64::engine::general_purpose::STANDARD);
+
+mod option_base64 {
+    use super::Base64Standard;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(data: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match data {
+            Some(data) => Base64Standard::serialize(data, serializer),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Create a wrapper type to reuse existing "with" attribute easily
+        #[derive(Deserialize)]
+        struct WrappedVecU8(#[serde(with = "Base64Standard")] Vec<u8>);
+
+        Option::<WrappedVecU8>::deserialize(deserializer)
+            .map(|it| it.map(|wrapped_value| wrapped_value.0))
+    }
 }
 
 impl PartialEq for SerializableMetadata {
@@ -588,6 +620,64 @@ mod tests {
             .unwrap();
         assert_eq!(find(&dir, "hello").unwrap(), None);
         assert!(!content.exists());
+    }
+
+    #[test]
+    fn serde_json_raw_metadata() {
+        let meta = SerializableMetadata {
+            key: "hello".to_string(),
+            integrity: Some("sha1-deadbeef".to_string()),
+            time: 0,
+            size: 0,
+            metadata: json!(null),
+            raw_metadata: Some(vec![b'1', b'2', b'3', b'4']),
+        };
+
+        assert_eq!(
+            serde_json::to_string(&meta).unwrap(),
+            "{\"key\":\"hello\",\"integrity\":\"sha1-deadbeef\",\"time\":0,\"size\":0,\"metadata\":null,\"raw_metadata\":\"MTIzNA==\"}"
+        );
+
+        let value = json!(
+            {
+                "key": "hello",
+                "integrity": "sha1-deadbeef",
+                "time": 0,
+                "size": 0,
+                "metadata": null,
+                "raw_metadata": "MTIzNA=="
+            }
+        );
+
+        let de_meta: SerializableMetadata = serde_json::from_value(value).unwrap();
+
+        assert_eq!(de_meta, meta);
+    }
+
+    #[test]
+    fn raw_metadata() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri: Integrity = "sha1-deadbeef".parse().unwrap();
+        let time = 1_234_567;
+        let raw_metadata = vec![1, 2, 3, 4];
+        let opts = WriteOpts::new()
+            .integrity(sri.clone())
+            .time(time)
+            .raw_metadata(raw_metadata.clone());
+        insert(&dir, "hello", opts).unwrap();
+        let entry = find(&dir, "hello").unwrap().unwrap();
+        assert_eq!(
+            entry,
+            Metadata {
+                key: String::from("hello"),
+                integrity: sri,
+                time: time,
+                size: 0,
+                metadata: json!(null),
+                raw_metadata: Some(raw_metadata),
+            }
+        );
     }
 
     #[test]
