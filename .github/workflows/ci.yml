@@ -28,7 +28,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        rust: [1.70.0, stable]
+        rust: [1.81.0, stable]
         os: [ubuntu-latest, macOS-latest, windows-latest]
 
     steps:
@@ -42,9 +42,9 @@ jobs:
           override: true
       - name: Clippy
         run: cargo clippy -- -D warnings
-      - name: Check (async-std)
+      - name: Check (smol)
         run: cargo check --features link_to
-      - name: Run tests (async-std)
+      - name: Run tests (smol)
         run: cargo test --verbose  --features link_to
       - name: Check (Tokio)
         run: cargo check --no-default-features --features tokio-runtime,link_to

@@ -1,34 +1,35 @@
 //! Functions for writing to cache.
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 use std::pin::Pin;
 
 use serde_json::Value;
 use ssri::{Algorithm, Integrity};
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 use crate::async_lib::{AsyncWrite, AsyncWriteExt};
 use crate::content::write;
 use crate::errors::{Error, IoErrorExt, Result};
 use crate::index;
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 use std::task::{Context as TaskContext, Poll};
 
 /// Writes `data` to the `cache`, indexing it under `key`.
 ///
 /// ## Example
 /// ```no_run
-/// use async_attributes;
+/// use macro_rules_attribute::apply;
+/// use smol_macros::main;
 ///
-/// #[async_attributes::main]
+/// #[apply(main!)]
 /// async fn main() -> cacache::Result<()> {
 ///     cacache::write("./my-cache", "my-key", b"hello").await?;
 ///     Ok(())
 /// }
 /// ```
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 pub async fn write<P, D, K>(cache: P, key: K, data: D) -> Result<Integrity>
 where
     P: AsRef<Path>,
@@ -43,15 +44,16 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// use async_attributes;
+/// use macro_rules_attribute::apply;
+/// use smol_macros::main;
 ///
-/// #[async_attributes::main]
+/// #[apply(main!)]
 /// async fn main() -> cacache::Result<()> {
 ///     cacache::write_with_algo(cacache::Algorithm::Xxh3, "./my-cache", "my-key", b"hello").await?;
 ///     Ok(())
 /// }
 /// ```
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 pub async fn write_with_algo<P, D, K>(
     algo: Algorithm,
     cache: P,
@@ -81,15 +83,16 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// use async_attributes;
+/// use macro_rules_attribute::apply;
+/// use smol_macros::main;
 ///
-/// #[async_attributes::main]
+/// #[apply(main!)]
 /// async fn main() -> cacache::Result<()> {
 ///     cacache::write_hash("./my-cache", b"hello").await?;
 ///     Ok(())
 /// }
 /// ```
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 pub async fn write_hash<P, D>(cache: P, data: D) -> Result<Integrity>
 where
     P: AsRef<Path>,
@@ -103,15 +106,16 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// use async_attributes;
+/// use macro_rules_attribute::apply;
+/// use smol_macros::main;
 ///
-/// #[async_attributes::main]
+/// #[apply(main!)]
 /// async fn main() -> cacache::Result<()> {
 ///     cacache::write_hash_with_algo(cacache::Algorithm::Xxh3, "./my-cache", b"hello").await?;
 ///     Ok(())
 /// }
 /// ```
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 pub async fn write_hash_with_algo<P, D>(algo: Algorithm, cache: P, data: D) -> Result<Integrity>
 where
     P: AsRef<Path>,
@@ -132,7 +136,7 @@ where
     inner(algo, cache.as_ref(), data.as_ref()).await
 }
 /// A reference to an open file writing to the cache.
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 pub struct Writer {
     cache: PathBuf,
     key: Option<String>,
@@ -141,7 +145,7 @@ pub struct Writer {
     opts: WriteOpts,
 }
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 impl AsyncWrite for Writer {
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -157,11 +161,6 @@ impl AsyncWrite for Writer {
         Pin::new(&mut self.writer).poll_flush(cx)
     }
 
-    #[cfg(feature = "async-std")]
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.writer).poll_close(cx)
-    }
-
     #[cfg(feature = "tokio")]
     fn poll_shutdown(
         mut self: Pin<&mut Self>,
@@ -169,18 +168,24 @@ impl AsyncWrite for Writer {
     ) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.writer).poll_shutdown(cx)
     }
+
+    #[cfg(feature = "smol")]
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.writer).poll_close(cx)
+    }
 }
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 impl Writer {
     /// Creates a new writable file handle into the cache.
     ///
     /// ## Example
     /// ```no_run
-    /// use async_attributes;
-    /// use async_std::prelude::*;
+    /// use macro_rules_attribute::apply;
+    /// use smol_macros::main;
+    /// use futures::io::AsyncWriteExt;
     ///
-    /// #[async_attributes::main]
+    /// #[apply(main!)]
     /// async fn main() -> cacache::Result<()> {
     ///     let mut fd = cacache::Writer::create("./my-cache", "my-key").await?;
     ///     fd.write_all(b"hello world").await.expect("Failed to write to cache");
@@ -202,10 +207,11 @@ impl Writer {
     ///
     /// ## Example
     /// ```no_run
-    /// use async_attributes;
-    /// use async_std::prelude::*;
+    /// use macro_rules_attribute::apply;
+    /// use smol_macros::main;
+    /// use futures::io::AsyncWriteExt;
     ///
-    /// #[async_attributes::main]
+    /// #[apply(main!)]
     /// async fn main() -> cacache::Result<()> {
     ///     let mut fd = cacache::Writer::create_with_algo(cacache::Algorithm::Xxh3, "./my-cache", "my-key").await?;
     ///     fd.write_all(b"hello world").await.expect("Failed to write to cache");
@@ -372,7 +378,7 @@ impl WriteOpts {
     }
 
     /// Opens the file handle for writing, returning an Writer instance.
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(any(feature = "tokio", feature = "smol"))]
     pub async fn open<P, K>(self, cache: P, key: K) -> Result<Writer>
     where
         P: AsRef<Path>,
@@ -396,7 +402,7 @@ impl WriteOpts {
     }
 
     /// Opens the file handle for writing, without a key returning an Writer instance.
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(any(feature = "tokio", feature = "smol"))]
     pub async fn open_hash<P>(self, cache: P) -> Result<Writer>
     where
         P: AsRef<Path>,
@@ -605,13 +611,25 @@ impl SyncWriter {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "async-std")]
-    use async_attributes::test as async_test;
+    #[cfg(feature = "smol")]
+    use macro_rules_attribute::apply;
+    #[cfg(feature = "smol")]
+    use smol_macros::test;
     #[cfg(feature = "tokio")]
     use tokio::test as async_test;
 
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(feature = "tokio")]
     #[async_test]
+    async fn round_trip() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        crate::write(&dir, "hello", b"hello").await.unwrap();
+        let data = crate::read(&dir, "hello").await.unwrap();
+        assert_eq!(data, b"hello");
+    }
+
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
     async fn round_trip() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
@@ -643,8 +661,25 @@ mod tests {
         assert_eq!(result, original, "we did not read back what we wrote");
     }
 
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(feature = "tokio")]
     #[async_test]
+    async fn hash_write_async() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let original = format!("hello world{}", 12);
+        let integrity = crate::write_hash(&dir, &original)
+            .await
+            .expect("should be able to write a hash asynchronously");
+        let bytes = crate::read_hash(&dir, &integrity)
+            .await
+            .expect("should be able to read back what we wrote");
+        let result =
+            String::from_utf8(bytes).expect("we wrote valid utf8 but did not read valid utf8 back");
+        assert_eq!(result, original, "we did not read back what we wrote");
+    }
+
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
     async fn hash_write_async() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();

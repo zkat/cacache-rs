@@ -2,23 +2,23 @@
 @help:
     just -l
 
-# Run tests on both runtimes with cargo nextest
+# Run tests on all runtimes with cargo nextest
 @test:
-    echo "----------\nasync-std:\n"
+    echo "----------\nsmol:\n"
     cargo nextest run
     echo "\n----------\ntokio:\n"
     cargo nextest run --no-default-features --features tokio-runtime
 
 # Run benchmarks with `cargo bench`
 @bench:
-    echo "----------\nasync-std:\n"
+    echo "----------\nsmol:\n"
     cargo bench
     echo "\n----------\ntokio:\n"
     cargo bench --no-default-features --features tokio-runtime
 
 # Run benchmarks with `cargo criterion`
 @criterion:
-    echo "----------\nasync-std:\n"
+    echo "----------\nsmol:\n"
     cargo criterion
     echo "\n----------\ntokio:\n"
     cargo criterion --no-default-features --features tokio-runtime

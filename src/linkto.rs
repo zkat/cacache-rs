@@ -1,6 +1,4 @@
-#[cfg(any(feature = "async-std", feature = "tokio"))]
-use crate::async_lib::AsyncRead;
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 use crate::async_lib::AsyncReadExt;
 use crate::content::linkto;
 use crate::errors::{Error, IoErrorExt, Result};
@@ -8,9 +6,9 @@ use crate::{index, WriteOpts};
 use ssri::{Algorithm, Integrity};
 use std::io::Read;
 use std::path::{Path, PathBuf};
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 use std::pin::Pin;
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 use std::task::{Context as TaskContext, Poll};
 
 const BUF_SIZE: usize = 16 * 1024;
@@ -21,16 +19,17 @@ const PROBE_SIZE: usize = 8;
 ///
 /// ## Example
 /// ```no_run
-/// use async_attributes;
+/// use macro_rules_attribute::apply;
+/// use smol_macros::main;
 /// use std::path::Path;
 ///
-/// #[async_attributes::main]
+/// #[apply(main!)]
 /// async fn main() -> cacache::Result<()> {
 ///     cacache::link_to("./my-cache", "my-key", "../my-other-files/my-file.tgz").await?;
 ///     Ok(())
 /// }
 /// ```
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 pub async fn link_to<P, K, T>(cache: P, key: K, target: T) -> Result<Integrity>
 where
     P: AsRef<Path>,
@@ -45,16 +44,17 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// use async_attributes;
+/// use macro_rules_attribute::apply;
+/// use smol_macros::main;
 /// use std::path::Path;
 ///
-/// #[async_attributes::main]
+/// #[apply(main!)]
 /// async fn main() -> cacache::Result<()> {
 ///     cacache::link_to_hash("./my-cache", "../my-other-files/my-file.tgz").await?;
 ///     Ok(())
 /// }
 /// ```
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 pub async fn link_to_hash<P, T>(cache: P, target: T) -> Result<Integrity>
 where
     P: AsRef<Path>,
@@ -110,7 +110,7 @@ where
 /// `SyncToLinker` instances.
 impl WriteOpts {
     /// Opens the target file handle for reading, returning a ToLinker instance.
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(any(feature = "tokio", feature = "smol"))]
     pub async fn link_to<P, K, T>(self, cache: P, key: K, target: T) -> Result<ToLinker>
     where
         P: AsRef<Path>,
@@ -141,7 +141,7 @@ impl WriteOpts {
 
     /// Opens the target file handle for reading, without a key, returning a
     /// ToLinker instance.
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(any(feature = "tokio", feature = "smol"))]
     pub async fn link_to_hash<P, T>(self, cache: P, target: T) -> Result<ToLinker>
     where
         P: AsRef<Path>,
@@ -217,7 +217,7 @@ impl WriteOpts {
 ///
 /// Make sure to call `.commit()` when done reading to actually add the file to
 /// the cache.
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 pub struct ToLinker {
     cache: PathBuf,
     key: Option<String>,
@@ -226,20 +226,8 @@ pub struct ToLinker {
     opts: WriteOpts,
 }
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
-impl AsyncRead for ToLinker {
-    #[cfg(feature = "async-std")]
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut TaskContext<'_>,
-        buf: &mut [u8],
-    ) -> Poll<std::io::Result<usize>> {
-        let amt = futures::ready!(Pin::new(&mut self.linker).poll_read(cx, buf))?;
-        self.read += amt;
-        Poll::Ready(Ok(amt))
-    }
-
-    #[cfg(feature = "tokio")]
+#[cfg(feature = "tokio")]
+impl tokio::io::AsyncRead for ToLinker {
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut TaskContext<'_>,
@@ -252,6 +240,19 @@ impl AsyncRead for ToLinker {
     }
 }
 
+#[cfg(feature = "smol")]
+impl futures::io::AsyncRead for ToLinker {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut TaskContext<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
+        let amt = futures::ready!(Pin::new(&mut self.linker).poll_read(cx, buf))?;
+        self.read += amt;
+        Poll::Ready(Ok(amt))
+    }
+}
+
 fn filesize(target: &Path) -> Result<usize> {
     Ok(target
         .metadata()
@@ -259,7 +260,7 @@ fn filesize(target: &Path) -> Result<usize> {
         .len() as usize)
 }
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 impl ToLinker {
     /// Creates a new asynchronous readable file handle into the cache.
     pub async fn open<P, K, T>(cache: P, key: K, target: T) -> Result<Self>
@@ -491,8 +492,10 @@ mod tests {
 
     use super::*;
 
-    #[cfg(feature = "async-std")]
-    use async_attributes::test as async_test;
+    #[cfg(feature = "smol")]
+    use macro_rules_attribute::apply;
+    #[cfg(feature = "smol")]
+    use smol_macros::test;
     #[cfg(feature = "tokio")]
     use tokio::test as async_test;
 
@@ -506,7 +509,7 @@ mod tests {
         target
     }
 
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(feature = "tokio")]
     #[async_test]
     async fn test_link() {
         let tmp = tempfile::tempdir().unwrap();
@@ -520,8 +523,36 @@ mod tests {
         assert_eq!(buf, b"hello world");
     }
 
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
+    async fn test_link() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = create_tmpfile(&tmp, b"hello world");
+
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        crate::link_to(&dir, "my-key", target).await.unwrap();
+
+        let buf = crate::read(&dir, "my-key").await.unwrap();
+        assert_eq!(buf, b"hello world");
+    }
+
+    #[cfg(feature = "tokio")]
     #[async_test]
+    async fn test_link_to_hash() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = create_tmpfile(&tmp, b"hello world");
+
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::link_to_hash(&dir, target).await.unwrap();
+
+        let buf = crate::read_hash(&dir, &sri).await.unwrap();
+        assert_eq!(buf, b"hello world");
+    }
+
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
     async fn test_link_to_hash() {
         let tmp = tempfile::tempdir().unwrap();
         let target = create_tmpfile(&tmp, b"hello world");
@@ -560,7 +591,7 @@ mod tests {
         assert_eq!(buf, b"hello world");
     }
 
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(feature = "tokio")]
     #[async_test]
     async fn test_open() {
         let tmp = tempfile::tempdir().unwrap();
@@ -579,8 +610,46 @@ mod tests {
         assert_eq!(buf, b"hello world");
     }
 
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
+    async fn test_open() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = create_tmpfile(&tmp, b"hello world");
+
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let mut handle = crate::ToLinker::open(&dir, "my-key", target).await.unwrap();
+
+        let mut buf = Vec::new();
+        handle.read_to_end(&mut buf).await.unwrap();
+        handle.commit().await.unwrap();
+        assert_eq!(buf, b"hello world");
+
+        let buf = crate::read_sync(&dir, "my-key").unwrap();
+        assert_eq!(buf, b"hello world");
+    }
+
+    #[cfg(feature = "tokio")]
     #[async_test]
+    async fn test_open_hash() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = create_tmpfile(&tmp, b"hello world");
+
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let mut handle = crate::ToLinker::open_hash(&dir, target).await.unwrap();
+
+        let mut buf = Vec::new();
+        handle.read_to_end(&mut buf).await.unwrap();
+        let sri = handle.commit().await.unwrap();
+        assert_eq!(buf, b"hello world");
+
+        let buf = crate::read_hash_sync(&dir, &sri).unwrap();
+        assert_eq!(buf, b"hello world");
+    }
+
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
     async fn test_open_hash() {
         let tmp = tempfile::tempdir().unwrap();
         let target = create_tmpfile(&tmp, b"hello world");

@@ -13,10 +13,10 @@ use crate::index;
 ///
 /// ## Example
 /// ```no_run
-/// use async_std::prelude::*;
-/// use async_attributes;
+/// use macro_rules_attribute::apply;
+/// use smol_macros::main;
 ///
-/// #[async_attributes::main]
+/// #[apply(main!)]
 /// async fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
 ///
@@ -31,7 +31,7 @@ use crate::index;
 ///     Ok(())
 /// }
 /// ```
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 pub async fn remove<P, K>(cache: P, key: K) -> Result<()>
 where
     P: AsRef<Path>,
@@ -45,10 +45,10 @@ where
 ///
 /// ## Example
 /// ```no_run
-/// use async_std::prelude::*;
-/// use async_attributes;
+/// use macro_rules_attribute::apply;
+/// use smol_macros::main;
 ///
-/// #[async_attributes::main]
+/// #[apply(main!)]
 /// async fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
 ///
@@ -64,7 +64,7 @@ where
 ///     Ok(())
 /// }
 /// ```
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()> {
     rm::rm_async(cache.as_ref(), sri).await
 }
@@ -74,10 +74,10 @@ pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()
 ///
 /// ## Example
 /// ```no_run
-/// use async_std::prelude::*;
-/// use async_attributes;
+/// use macro_rules_attribute::apply;
+/// use smol_macros::main;
 ///
-/// #[async_attributes::main]
+/// #[apply(main!)]
 /// async fn main() -> cacache::Result<()> {
 ///     let sri = cacache::write("./my-cache", "my-key", b"hello").await?;
 ///
@@ -91,7 +91,7 @@ pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()
 ///     Ok(())
 /// }
 /// ```
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 pub async fn clear<P: AsRef<Path>>(cache: P) -> Result<()> {
     async fn inner(cache: &Path) -> Result<()> {
         for entry in cache
@@ -210,64 +210,107 @@ pub fn clear_sync<P: AsRef<Path>>(cache: P) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-
-    #[cfg(feature = "async-std")]
-    use async_attributes::test as async_test;
+    #[cfg(feature = "smol")]
+    use macro_rules_attribute::apply;
+    #[cfg(feature = "smol")]
+    use smol_macros::test;
     #[cfg(feature = "tokio")]
     use tokio::test as async_test;
 
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(feature = "tokio")]
     #[async_test]
     async fn test_remove() {
-        futures::executor::block_on(async {
-            let tmp = tempfile::tempdir().unwrap();
-            let dir = tmp.path().to_owned();
-            let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
 
-            crate::remove(&dir, "key").await.unwrap();
+        crate::remove(&dir, "key").await.unwrap();
 
-            let entry = crate::metadata(&dir, "key").await.unwrap();
-            assert_eq!(entry, None);
+        let entry = crate::metadata(&dir, "key").await.unwrap();
+        assert_eq!(entry, None);
 
-            let data_exists = crate::exists(&dir, &sri).await;
-            assert!(data_exists);
-        });
+        let data_exists = crate::exists(&dir, &sri).await;
+        assert!(data_exists);
     }
 
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
+    async fn test_remove() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
+
+        crate::remove(&dir, "key").await.unwrap();
+
+        let entry = crate::metadata(&dir, "key").await.unwrap();
+        assert_eq!(entry, None);
+
+        let data_exists = crate::exists(&dir, &sri).await;
+        assert!(data_exists);
+    }
+
+    #[cfg(feature = "tokio")]
     #[async_test]
     async fn test_remove_data() {
-        futures::executor::block_on(async {
-            let tmp = tempfile::tempdir().unwrap();
-            let dir = tmp.path().to_owned();
-            let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
 
-            crate::remove_hash(&dir, &sri).await.unwrap();
+        crate::remove_hash(&dir, &sri).await.unwrap();
 
-            let entry = crate::metadata(&dir, "key").await.unwrap();
-            assert!(entry.is_some());
+        let entry = crate::metadata(&dir, "key").await.unwrap();
+        assert!(entry.is_some());
 
-            let data_exists = crate::exists(&dir, &sri).await;
-            assert!(!data_exists);
-        });
+        let data_exists = crate::exists(&dir, &sri).await;
+        assert!(!data_exists);
     }
 
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
+    async fn test_remove_data() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
+
+        crate::remove_hash(&dir, &sri).await.unwrap();
+
+        let entry = crate::metadata(&dir, "key").await.unwrap();
+        assert!(entry.is_some());
+
+        let data_exists = crate::exists(&dir, &sri).await;
+        assert!(!data_exists);
+    }
+
+    #[cfg(feature = "tokio")]
     #[async_test]
     async fn test_clear() {
-        futures::executor::block_on(async {
-            let tmp = tempfile::tempdir().unwrap();
-            let dir = tmp.path().to_owned();
-            let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
 
-            crate::clear(&dir).await.unwrap();
+        crate::clear(&dir).await.unwrap();
 
-            let entry = crate::metadata(&dir, "key").await.unwrap();
-            assert!(entry.is_none());
+        let entry = crate::metadata(&dir, "key").await.unwrap();
+        assert!(entry.is_none());
 
-            let data_exists = crate::exists(&dir, &sri).await;
-            assert!(!data_exists);
-        });
+        let data_exists = crate::exists(&dir, &sri).await;
+        assert!(!data_exists);
+    }
+
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
+    async fn test_clear() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri = crate::write(&dir, "key", b"my-data").await.unwrap();
+
+        crate::clear(&dir).await.unwrap();
+
+        let entry = crate::metadata(&dir, "key").await.unwrap();
+        assert!(entry.is_none());
+
+        let data_exists = crate::exists(&dir, &sri).await;
+        assert!(!data_exists);
     }
 
     #[test]

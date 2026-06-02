@@ -59,5 +59,5 @@ impl<T> IoErrorExt<T> for std::result::Result<T, serde_json::Error> {
 }
 
 pub fn io_error(err: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::Other, err)
+    std::io::Error::other(err)
 }

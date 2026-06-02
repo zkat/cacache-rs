@@ -29,14 +29,16 @@
 //!
 //! ## Examples
 //!
-//! Un-suffixed APIs are all async, using
-//! [`async-std`](https://crates.io/crates/async-std). They let you put data
+//! Un-suffixed APIs are all async, using asynchronous runtimes like
+//! [`tokio`](https://crates.io/crates/tokio) or
+//! [`smol`](https://crates.io/crates/smol). They let you put data
 //! in and get it back out -- asynchronously!
 //!
 //! ```no_run
-//! use async_attributes;
+//! use macro_rules_attribute::apply;
+//! use smol_macros::main;
 //!
-//! #[async_attributes::main]
+//! #[apply(main!)]
 //! async fn main() -> cacache::Result<()> {
 //!   // Data goes in...
 //!   cacache::write("./my-cache", "key", b"hello").await?;
@@ -58,9 +60,10 @@
 //! than doing key lookups:
 //!
 //! ```no_run
-//! use async_attributes;
+//! use macro_rules_attribute::apply;
+//! use smol_macros::main;
 //!
-//! #[async_attributes::main]
+//! #[apply(main!)]
 //! async fn main() -> cacache::Result<()> {
 //!   // Data goes in...
 //!   let sri = cacache::write("./my-cache", "key", b"hello").await?;
@@ -79,10 +82,11 @@
 //! an API reminiscent of `std::fs::OpenOptions`:
 //!
 //! ```no_run
-//! use async_attributes;
-//! use async_std::prelude::*;
+//! use macro_rules_attribute::apply;
+//! use smol_macros::main;
+//! use futures::io::{AsyncWriteExt, AsyncReadExt};
 //!
-//! #[async_attributes::main]
+//! #[apply(main!)]
 //! async fn main() -> cacache::Result<()> {
 //!   let mut fd = cacache::Writer::create("./my-cache", "key").await?;
 //!   for _ in 0..10 {
@@ -142,7 +146,10 @@
 //! the same suffixes as the other APIs.
 //!
 //! ```no_run
-//! #[async_attributes::main]
+//! use macro_rules_attribute::apply;
+//! use smol_macros::main;
+//!
+//! #[apply(main!)]
 //! async fn main() -> cacache::Result<()> {
 //!   #[cfg(feature = "link_to")]
 //!   cacache::link_to("./my-cache", "key", "/path/to/my-other-file.txt").await?;
@@ -153,13 +160,15 @@
 //! ```
 #![warn(missing_docs)]
 
-#[cfg(all(feature = "async-std", feature = "tokio-runtime"))]
-compile_error!("Only either feature \"async-std\" or \"tokio-runtime\" must be enabled for this crate, not both.");
+#[cfg(all(feature = "tokio-runtime", feature = "smol"))]
+compile_error!(
+    "Only either feature \"tokio-runtime\" or \"smol\" must be enabled for this crate, not both."
+);
 
 pub use serde_json::Value;
 pub use ssri::{Algorithm, Integrity};
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "tokio", feature = "smol"))]
 mod async_lib;
 
 mod content;
