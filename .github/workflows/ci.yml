@@ -28,7 +28,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        rust: [1.70.0, stable]
+        rust: [1.81.0, stable]
         os: [ubuntu-latest, macOS-latest, windows-latest]
 
     steps:
@@ -50,3 +50,7 @@ jobs:
         run: cargo check --no-default-features --features tokio-runtime,link_to
       - name: Run unit tests (Tokio)
         run: cargo test --verbose --no-default-features --features tokio-runtime,link_to --lib
+      - name: Check (Smol)
+        run: cargo check --no-default-features --features smol-runtime,link_to
+      - name: Run unit tests (Smol)
+        run: cargo test --verbose --no-default-features --features smol-runtime,link_to --lib

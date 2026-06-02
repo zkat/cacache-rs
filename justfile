@@ -2,12 +2,14 @@
 @help:
     just -l
 
-# Run tests on both runtimes with cargo nextest
+# Run tests on all runtimes with cargo nextest
 @test:
     echo "----------\nasync-std:\n"
     cargo nextest run
     echo "\n----------\ntokio:\n"
     cargo nextest run --no-default-features --features tokio-runtime
+    echo "\n----------\nsmol:\n"
+    cargo nextest run --no-default-features --features smol-runtime
 
 # Run benchmarks with `cargo bench`
 @bench:
@@ -15,6 +17,8 @@
     cargo bench
     echo "\n----------\ntokio:\n"
     cargo bench --no-default-features --features tokio-runtime
+    echo "\n----------\nsmol:\n"
+    cargo bench --no-default-features --features smol-runtime
 
 # Run benchmarks with `cargo criterion`
 @criterion:
@@ -22,6 +26,8 @@
     cargo criterion
     echo "\n----------\ntokio:\n"
     cargo criterion --no-default-features --features tokio-runtime
+    echo "\n----------\nsmol:\n"
+    cargo criterion --no-default-features --features smol-runtime
 
 # Generate a changelog with git-cliff
 changelog TAG:

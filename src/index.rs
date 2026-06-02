@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use digest::Digest;
 use either::{Left, Right};
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 use futures::stream::StreamExt;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
@@ -18,7 +18,7 @@ use sha2::Sha256;
 use ssri::Integrity;
 use walkdir::WalkDir;
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 use crate::async_lib::{AsyncBufReadExt, AsyncWriteExt};
 use crate::content::path::content_path;
 use crate::errors::{IoErrorExt, Result};
@@ -103,7 +103,7 @@ pub fn insert(cache: &Path, key: &str, opts: WriteOpts) -> Result<Integrity> {
         .unwrap())
 }
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 /// Asynchronous raw insertion into the cache index.
 pub async fn insert_async<'a>(cache: &'a Path, key: &'a str, opts: WriteOpts) -> Result<Integrity> {
     let bucket = bucket_path(cache, key);
@@ -175,7 +175,7 @@ pub fn find(cache: &Path, key: &str) -> Result<Option<Metadata>> {
         }))
 }
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 /// Asynchronous raw index Metadata access.
 pub async fn find_async(cache: &Path, key: &str) -> Result<Option<Metadata>> {
     let bucket = bucket_path(cache, key);
@@ -224,7 +224,7 @@ pub fn delete(cache: &Path, key: &str) -> Result<()> {
     .map(|_| ())
 }
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 /// Asynchronously deletes an index entry, without deleting the actual cache
 /// data entry.
 pub async fn delete_async(cache: &Path, key: &str) -> Result<()> {
@@ -351,7 +351,7 @@ fn bucket_entries(bucket: &Path) -> std::io::Result<Vec<SerializableMetadata>> {
         })
 }
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 async fn bucket_entries_async(bucket: &Path) -> std::io::Result<Vec<SerializableMetadata>> {
     let file_result = crate::async_lib::File::open(bucket).await;
     let file = if let Err(err) = file_result {
@@ -424,7 +424,7 @@ impl RemoveOpts {
     /// Removes an individual index metadata entry.
     /// If remove_fully is set to false (default), the associated content will be left in the cache.
     /// If remove_fully is true, both the index entry and the contents will be physically removed from the disk
-    #[cfg(any(feature = "async-std", feature = "tokio"))]
+    #[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
     pub async fn remove<P, K>(self, cache: P, key: K) -> Result<()>
     where
         P: AsRef<Path>,
@@ -454,6 +454,10 @@ mod tests {
 
     #[cfg(feature = "async-std")]
     use async_attributes::test as async_test;
+    #[cfg(feature = "smol")]
+    use macro_rules_attribute::apply;
+    #[cfg(feature = "smol")]
+    use smol_macros::test;
     #[cfg(feature = "tokio")]
     use tokio::test as async_test;
 
@@ -482,6 +486,21 @@ mod tests {
 
     #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
+    async fn insert_async_basic() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri: Integrity = "sha1-deadbeef".parse().unwrap();
+        let time = 1_234_567;
+        let opts = WriteOpts::new().integrity(sri).time(time);
+        futures::executor::block_on(async {
+            insert_async(&dir, "hello", opts).await.unwrap();
+        });
+        let entry = std::fs::read_to_string(bucket_path(&dir, "hello")).unwrap();
+        assert_eq!(entry, MOCK_ENTRY);
+    }
+
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
     async fn insert_async_basic() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
@@ -552,6 +571,21 @@ mod tests {
         assert_eq!(find(&dir, "hello").unwrap(), None);
     }
 
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
+    async fn delete_async_basic() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri: Integrity = "sha1-deadbeef".parse().unwrap();
+        let time = 1_234_567;
+        let opts = WriteOpts::new().integrity(sri).time(time);
+        insert(&dir, "hello", opts).unwrap();
+        futures::executor::block_on(async {
+            delete_async(&dir, "hello").await.unwrap();
+        });
+        assert_eq!(find(&dir, "hello").unwrap(), None);
+    }
+
     #[test]
     fn delete_fully() {
         let tmp = tempfile::tempdir().unwrap();
@@ -572,6 +606,26 @@ mod tests {
 
     #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
+    async fn delete_fully_async() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let content = content_path(&dir, &"sha1-deadbeef".parse().unwrap());
+        fs::create_dir_all(content.parent().unwrap()).unwrap();
+        fs::write(content.as_path(), "hello").unwrap();
+        let sri: Integrity = "sha1-deadbeef".parse().unwrap();
+        let time = 1_234_567;
+        insert(&dir, "hello", WriteOpts::new().integrity(sri).time(time)).unwrap();
+        RemoveOpts::new()
+            .remove_fully(true)
+            .remove(&dir, "hello")
+            .await
+            .unwrap();
+        assert_eq!(find(&dir, "hello").unwrap(), None);
+        assert!(!content.exists());
+    }
+
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
     async fn delete_fully_async() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();
@@ -614,6 +668,33 @@ mod tests {
 
     #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
+    async fn round_trip_async() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let sri: Integrity = "sha1-deadbeef".parse().unwrap();
+        let time = 1_234_567;
+        let opts = WriteOpts::new().integrity(sri.clone()).time(time);
+        futures::executor::block_on(async {
+            insert_async(&dir, "hello", opts).await.unwrap();
+        });
+        let entry = futures::executor::block_on(async {
+            find_async(&dir, "hello").await.unwrap().unwrap()
+        });
+        assert_eq!(
+            entry,
+            Metadata {
+                key: String::from("hello"),
+                integrity: sri,
+                time,
+                size: 0,
+                metadata: json!(null),
+                raw_metadata: None,
+            }
+        );
+    }
+
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
     async fn round_trip_async() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().to_owned();

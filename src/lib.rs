@@ -156,10 +156,20 @@
 #[cfg(all(feature = "async-std", feature = "tokio-runtime"))]
 compile_error!("Only either feature \"async-std\" or \"tokio-runtime\" must be enabled for this crate, not both.");
 
+#[cfg(all(feature = "async-std", feature = "smol"))]
+compile_error!(
+    "Only either feature \"async-std\" or \"smol\" must be enabled for this crate, not both."
+);
+
+#[cfg(all(feature = "tokio-runtime", feature = "smol"))]
+compile_error!(
+    "Only either feature \"tokio-runtime\" or \"smol\" must be enabled for this crate, not both."
+);
+
 pub use serde_json::Value;
 pub use ssri::{Algorithm, Integrity};
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 mod async_lib;
 
 mod content;

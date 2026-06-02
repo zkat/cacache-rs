@@ -2,12 +2,12 @@ use ssri::{Algorithm, Integrity, IntegrityOpts};
 use std::fs::DirBuilder;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 use std::pin::Pin;
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 use std::task::{Context, Poll};
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 use crate::async_lib::AsyncRead;
 use crate::content::path;
 use crate::errors::{IoErrorExt, Result};
@@ -106,7 +106,7 @@ impl std::io::Read for ToLinker {
 /// An `AsyncRead`-like type that calculates the integrity of a file as it is
 /// read. When the linker is committed, a symlink is created from the cache to
 /// the target file using the integrity computed from the file's contents.
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 pub struct AsyncToLinker {
     /// The path to the target file that will be symlinked from the cache.
     target: PathBuf,
@@ -118,7 +118,7 @@ pub struct AsyncToLinker {
     builder: IntegrityOpts,
 }
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 impl AsyncRead for AsyncToLinker {
     #[cfg(feature = "async-std")]
     fn poll_read(
@@ -146,9 +146,22 @@ impl AsyncRead for AsyncToLinker {
         }
         Poll::Ready(Ok(()))
     }
+
+    #[cfg(feature = "smol")]
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
+        let amt = futures::ready!(Pin::new(&mut self.fd).poll_read(cx, buf))?;
+        if amt > 0 {
+            self.builder.input(&buf[..amt]);
+        }
+        Poll::Ready(Ok(amt))
+    }
 }
 
-#[cfg(any(feature = "async-std", feature = "tokio"))]
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "smol"))]
 impl AsyncToLinker {
     pub async fn new(cache: &Path, algo: Algorithm, target: &Path) -> Result<Self> {
         let file = crate::async_lib::File::open(target)
@@ -176,10 +189,16 @@ mod tests {
 
     #[cfg(feature = "async-std")]
     use async_attributes::test as async_test;
+    #[cfg(feature = "smol")]
+    use macro_rules_attribute::apply;
+    #[cfg(feature = "smol")]
+    use smol_macros::test;
     #[cfg(feature = "tokio")]
     use tokio::test as async_test;
 
     #[cfg(feature = "async-std")]
+    use futures::io::AsyncReadExt;
+    #[cfg(feature = "smol")]
     use futures::io::AsyncReadExt;
     #[cfg(feature = "tokio")]
     use tokio::io::AsyncReadExt;
@@ -224,6 +243,39 @@ mod tests {
 
     #[cfg(any(feature = "async-std", feature = "tokio"))]
     #[async_test]
+    async fn basic_async_link() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = create_tmpfile(&tmp, b"hello world");
+
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().to_owned();
+        let mut linker = AsyncToLinker::new(&dir, Algorithm::Sha256, &target)
+            .await
+            .unwrap();
+
+        // read all of the data from the linker, which will calculate the integrity
+        // hash.
+        let mut buf: Vec<u8> = Vec::new();
+        AsyncReadExt::read_to_end(&mut linker, &mut buf)
+            .await
+            .unwrap();
+        assert_eq!(buf, b"hello world");
+
+        // commit the linker, creating a symlink in the cache and an integrity
+        // hash.
+        let sri = linker.commit().await.unwrap();
+        assert_eq!(sri.to_string(), Integrity::from(b"hello world").to_string());
+
+        let cpath = path::content_path(&dir, &sri);
+        assert!(cpath.exists());
+        let metadata = std::fs::symlink_metadata(&cpath).unwrap();
+        let file_type = metadata.file_type();
+        assert!(file_type.is_symlink());
+        assert_eq!(std::fs::read(cpath).unwrap(), b"hello world");
+    }
+
+    #[cfg(feature = "smol")]
+    #[apply(test!)]
     async fn basic_async_link() {
         let tmp = tempfile::tempdir().unwrap();
         let target = create_tmpfile(&tmp, b"hello world");
