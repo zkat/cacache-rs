@@ -425,7 +425,7 @@ fn update_state(
     }
 }
 
-#[cfg(not(feature = "tokio"))]
+#[cfg(all(not(feature = "tokio"), feature = "async-std"))]
 /// Update the state.
 fn update_state(current_state: &mut State, next_state: State) {
     *current_state = next_state;
