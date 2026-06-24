@@ -26,7 +26,7 @@ use crate::index;
 ///     cacache::read("./my-cache", "my-key").await?;
 ///
 ///     // But this succeeds:
-///     cacache::read_hash("./my-cache", &sri).await?;
+///     cacache::read_hash("./my-cache", sri).await?;
 ///
 ///     Ok(())
 /// }
@@ -56,7 +56,7 @@ where
 ///
 ///     // These fail:
 ///     cacache::read("./my-cache", "my-key").await?;
-///     cacache::read_hash("./my-cache", &sri).await?;
+///     cacache::read_hash("./my-cache", sri).await?;
 ///
 ///     // But this succeeds:
 ///     cacache::metadata("./my-cache", "my-key").await?;
@@ -86,7 +86,7 @@ pub async fn remove_hash<P: AsRef<Path>>(cache: P, sri: &Integrity) -> Result<()
 ///     // These all fail:
 ///     cacache::read("./my-cache", "my-key").await?;
 ///     cacache::metadata("./my-cache", "my-key").await?;
-///     cacache::read_hash("./my-cache", &sri).await?;
+///     cacache::read_hash("./my-cache", sri).await?;
 ///
 ///     Ok(())
 /// }
